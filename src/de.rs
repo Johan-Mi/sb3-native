@@ -1,9 +1,11 @@
 use anyhow::Result;
 use serde::Deserialize;
-use std::{fs::File, path::Path};
+use std::{collections::HashMap, fs::File, path::Path};
 
 #[derive(Debug, Deserialize)]
-pub struct Project {}
+pub struct Project {
+    targets: Vec<Target>,
+}
 
 impl Project {
     pub fn load(path: &Path) -> Result<Self> {
@@ -13,3 +15,27 @@ impl Project {
         Ok(serde_json::from_reader(project_json)?)
     }
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Target {
+    #[serde(default)]
+    is_stage: bool,
+    name: String,
+    variables: HashMap<String, Variable>,
+    lists: HashMap<String, List>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum RawValue {
+    String(String),
+    Number(f64),
+    Bool(bool),
+}
+
+#[derive(Debug, Deserialize)]
+struct Variable(String, RawValue);
+
+#[derive(Debug, Deserialize)]
+struct List(String, Vec<RawValue>);
