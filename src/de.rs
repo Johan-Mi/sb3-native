@@ -24,7 +24,7 @@ struct Target {
     name: String,
     variables: HashMap<String, Variable>,
     lists: HashMap<String, List>,
-    blocks: HashMap<String, Block>,
+    blocks: HashMap<BlockId, Block>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,29 +36,45 @@ enum RawValue {
 }
 
 #[derive(Debug, Deserialize)]
-struct Variable(String, RawValue);
+struct Variable(VariableId, RawValue);
 
 #[derive(Debug, Deserialize)]
-struct List(String, Vec<RawValue>);
+#[serde(transparent)]
+struct VariableId(String);
+
+#[derive(Debug, Deserialize)]
+struct List(ListId, Vec<RawValue>);
+
+#[derive(Debug, Deserialize)]
+#[serde(transparent)]
+struct ListId(String);
 
 #[derive(Debug, Deserialize)]
 struct Block {
     opcode: String,
-    next: Option<String>,
+    next: Option<BlockId>,
     #[serde(default)]
     inputs: HashMap<String, Input>,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+struct BlockId(String);
+
+#[derive(Debug, Deserialize)]
+#[serde(transparent)]
+struct BroadcastId(String);
+
 #[derive(Debug)]
 enum Input {
-    Block(String),
+    Block(BlockId),
     // Also includes positive numbers, positive integers, integers and angles.
     Number(f64),
     // Also includes colors.
     String(String),
-    Broadcast { id: String },
-    Variable { id: String },
-    List { id: String },
+    Broadcast(BroadcastId),
+    Variable(VariableId),
+    List(ListId),
 }
 
 impl<'de> Deserialize<'de> for Input {
@@ -132,7 +148,7 @@ impl<'de> Visitor<'de> for InnerInputVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(InnerInput(Input::Block(v)))
+        Ok(InnerInput(Input::Block(BlockId(v))))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -169,7 +185,7 @@ impl<'de> Visitor<'de> for InnerInputVisitor {
                         "unexpected end of broadcast block input",
                     )
                 })?;
-                Ok(InnerInput(Input::Broadcast { id }))
+                Ok(InnerInput(Input::Broadcast(id)))
             }
             Some(12) => {
                 let _name = seq.next_element::<String>()?.ok_or_else(|| {
@@ -182,7 +198,7 @@ impl<'de> Visitor<'de> for InnerInputVisitor {
                         "unexpected end of variable block input",
                     )
                 })?;
-                Ok(InnerInput(Input::Variable { id }))
+                Ok(InnerInput(Input::Variable(id)))
             }
             Some(13) => {
                 let _name = seq.next_element::<String>()?.ok_or_else(|| {
@@ -195,7 +211,7 @@ impl<'de> Visitor<'de> for InnerInputVisitor {
                         "unexpected end of list block input",
                     )
                 })?;
-                Ok(InnerInput(Input::List { id }))
+                Ok(InnerInput(Input::List(id)))
             }
             _ => Err(serde::de::Error::custom("invalid block input tag")),
         }
