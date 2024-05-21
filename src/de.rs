@@ -22,8 +22,8 @@ struct Target {
     #[serde(default)]
     is_stage: bool,
     name: String,
-    variables: HashMap<String, Variable>,
-    lists: HashMap<String, List>,
+    variables: HashMap<VariableId, Variable>,
+    lists: HashMap<ListId, List>,
     blocks: HashMap<BlockId, Block>,
 }
 
@@ -36,16 +36,16 @@ enum RawValue {
 }
 
 #[derive(Debug, Deserialize)]
-struct Variable(VariableId, RawValue);
+struct Variable(String, RawValue);
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 struct VariableId(String);
 
 #[derive(Debug, Deserialize)]
-struct List(ListId, Vec<RawValue>);
+struct List(String, Vec<RawValue>);
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 struct ListId(String);
 
