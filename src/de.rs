@@ -57,7 +57,8 @@ struct Block {
     next: Option<BlockId>,
     #[serde(default)]
     inputs: HashMap<String, Input>,
-    fields: Option<Fields>,
+    #[serde(default)]
+    fields: Fields,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
@@ -261,7 +262,7 @@ impl<'de> Visitor<'de> for NumberOrNumericStringVisitor {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 struct Fields {
     variable: Option<fields::Variable>,
