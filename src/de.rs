@@ -1,3 +1,5 @@
+mod fields;
+
 use anyhow::Result;
 use serde::{de::Visitor, Deserialize};
 use std::{collections::HashMap, fs::File, path::Path};
@@ -55,7 +57,6 @@ struct Block {
     next: Option<BlockId>,
     #[serde(default)]
     inputs: HashMap<String, Input>,
-    #[serde(default)]
     fields: Option<Fields>,
 }
 
@@ -262,13 +263,13 @@ impl<'de> Visitor<'de> for NumberOrNumericStringVisitor {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum Fields {
-    Variable(String, VariableId),
-    List(String, ListId),
-    Value(String, ()),
-    Operator(String, ()),
-    KeyOption(String, ()),
-    BroadcastOption(String, ()),
-    StopOption(String, ()),
-    CloneOption(String, ()),
+struct Fields {
+    variable: Option<fields::Variable>,
+    list: Option<fields::List>,
+    value: Option<fields::Value>,
+    operator: Option<fields::Operator>,
+    key_option: Option<fields::KeyOption>,
+    broadcast_option: Option<fields::BroadcastOption>,
+    stop_option: Option<fields::StopOption>,
+    clone_option: Option<fields::CloneOption>,
 }
