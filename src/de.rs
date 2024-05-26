@@ -55,6 +55,8 @@ struct Block {
     next: Option<BlockId>,
     #[serde(default)]
     inputs: HashMap<String, Input>,
+    #[serde(default)]
+    fields: Option<Fields>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
@@ -256,4 +258,17 @@ impl<'de> Visitor<'de> for NumberOrNumericStringVisitor {
             serde::de::Error::custom("expected string literal to be numeric")
         })?))
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum Fields {
+    Variable(String, VariableId),
+    List(String, ListId),
+    Value(String, ()),
+    Operator(String, ()),
+    KeyOption(String, ()),
+    BroadcastOption(String, ()),
+    StopOption(String, ()),
+    CloneOption(String, ()),
 }
