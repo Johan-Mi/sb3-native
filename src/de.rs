@@ -31,7 +31,7 @@ struct Target {
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-enum RawValue {
+pub enum RawValue {
     String(String),
     Number(f64),
     Bool(bool),
@@ -63,7 +63,7 @@ struct Block {
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
-struct BlockId(String);
+pub struct BlockId(String);
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]

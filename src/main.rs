@@ -1,6 +1,7 @@
 #![warn(clippy::nursery, clippy::pedantic)]
 
 mod de;
+mod hir;
 
 use anyhow::{ensure, Context, Result};
 use std::env;
