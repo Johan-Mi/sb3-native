@@ -6,7 +6,7 @@ use std::{collections::HashMap, fs::File, path::Path};
 
 #[derive(Debug, Deserialize)]
 pub struct Project {
-    targets: Vec<Target>,
+    pub targets: Vec<Target>,
 }
 
 impl Project {
@@ -20,13 +20,13 @@ impl Project {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Target {
+pub struct Target {
     #[serde(default)]
     is_stage: bool,
     name: String,
     variables: HashMap<VariableId, Variable>,
     lists: HashMap<ListId, List>,
-    blocks: HashMap<BlockId, Block>,
+    pub blocks: HashMap<BlockId, Block>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,8 +52,8 @@ struct List(String, Vec<RawValue>);
 struct ListId(String);
 
 #[derive(Debug, Deserialize)]
-struct Block {
-    opcode: String,
+pub struct Block {
+    pub opcode: String,
     next: Option<BlockId>,
     #[serde(default)]
     inputs: HashMap<String, Input>,

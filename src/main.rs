@@ -15,5 +15,7 @@ fn main() -> Result<()> {
         .context("failed to load project")?;
     eprintln!("{project:#?}");
 
+    let project = hir::Project::lower(project)?;
+
     Ok(())
 }
