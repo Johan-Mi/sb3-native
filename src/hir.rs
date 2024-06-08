@@ -15,7 +15,7 @@ pub struct Project {
 
 impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
-        let hats = BTreeMap::new();
+        let mut hats = BTreeMap::new();
         let blocks = BTreeMap::new();
 
         let mut generator = Generator::default();
@@ -30,13 +30,22 @@ impl Project {
             .targets
             .into_iter()
             .map(|target| {
-                let my_hats = BTreeSet::new();
+                let mut my_hats = BTreeSet::new();
 
                 for (id, block) in target.blocks {
                     let id = t(id);
 
                     match &*block.opcode {
-                        "event_when_flag_clicked" => todo!(),
+                        "event_when_flag_clicked" => {
+                            hats.insert(
+                                id,
+                                Hat {
+                                    kind: HatKind::WhenFlagClicked,
+                                    body: Sequence { blocks: Vec::new() },
+                                },
+                            );
+                            my_hats.insert(id);
+                        }
                         opcode => bail!("invalid opcode: {opcode:?}"),
                     }
                 }
@@ -99,7 +108,7 @@ enum Expresssion {
     Immediate(Immediate),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct BlockId(NonZeroU32);
 
 struct VariableId(NonZeroU32);
