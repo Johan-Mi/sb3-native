@@ -36,6 +36,33 @@ impl Project {
                     let id = t(id);
 
                     match &*block.opcode {
+                        "argument_reporter_string_number" => {
+                            todo!("argument_reporter_string_number")
+                        }
+                        "control_for_each" => todo!("control_for_each"),
+                        "control_if" => todo!("control_if"),
+                        "control_if_else" => todo!("control_if_else"),
+                        "control_repeat" => todo!("control_repeat"),
+                        "control_repeat_until" => todo!("control_repeat_until"),
+                        "control_stop" => todo!("control_stop"),
+                        "data_addtolist" => todo!("data_addtolist"),
+                        "data_changevariableby" => {
+                            todo!("data_changevariableby")
+                        }
+                        "data_deletealloflist" => todo!("data_deletealloflist"),
+                        "data_deleteoflist" => todo!("data_deleteoflist"),
+                        "data_itemoflist" => todo!("data_itemoflist"),
+                        "data_lengthoflist" => todo!("data_lengthoflist"),
+                        "data_replaceitemoflist" => {
+                            todo!("data_replaceitemoflist")
+                        }
+                        "data_setvariableto" => todo!("data_setvariableto"),
+                        "event_broadcastandwait" => {
+                            todo!("event_broadcastandwait")
+                        }
+                        "event_whenbroadcastreceived" => {
+                            todo!("event_whenbroadcastreceived")
+                        }
                         "event_when_flag_clicked" => {
                             hats.insert(
                                 id,
@@ -46,6 +73,40 @@ impl Project {
                             );
                             my_hats.insert(id);
                         }
+                        "looks_hide" => todo!("looks_hide"),
+                        "looks_setsizeto" => todo!("looks_setsizeto"),
+                        "looks_switchcostumeto" => {
+                            todo!("looks_switchcostumeto")
+                        }
+                        "motion_changexby" => todo!("motion_changexby"),
+                        "motion_changeyby" => todo!("motion_changeyby"),
+                        "motion_gotoxy" => todo!("motion_gotoxy"),
+                        "motion_setx" => todo!("motion_setx"),
+                        "motion_xposition" => todo!("motion_xposition"),
+                        "operator_add" => todo!("operator_add"),
+                        "operator_and" => todo!("operator_and"),
+                        "operator_divide" => todo!("operator_divide"),
+                        "operator_equals" => todo!("operator_equals"),
+                        "operator_gt" => todo!("operator_gt"),
+                        "operator_join" => todo!("operator_join"),
+                        "operator_length" => todo!("operator_length"),
+                        "operator_letter_of" => todo!("operator_letter_of"),
+                        "operator_lt" => todo!("operator_lt"),
+                        "operator_mathop" => todo!("operator_mathop"),
+                        "operator_mod" => todo!("operator_mod"),
+                        "operator_multiply" => todo!("operator_multiply"),
+                        "operator_not" => todo!("operator_not"),
+                        "operator_or" => todo!("operator_or"),
+                        "operator_subtract" => todo!("operator_subtract"),
+                        "pen_clear" => todo!("pen_clear"),
+                        "pen_stamp" => todo!("pen_stamp"),
+                        "procedures_call" => todo!("procedures_call"),
+                        "procedures_definition" => {
+                            todo!("procedures_definition")
+                        }
+                        "procedures_prototype" => todo!("procedures_prototype"),
+                        "sensing_answer" => todo!("sensing_answer"),
+                        "sensing_askandwait" => todo!("sensing_askandwait"),
                         opcode => bail!("invalid opcode: {opcode:?}"),
                     }
                 }
