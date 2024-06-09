@@ -89,19 +89,47 @@ impl Project {
                             blocks.insert(id, Block::Add(lhs, rhs));
                         }
                         "operator_and" => todo!("operator_and"),
-                        "operator_divide" => todo!("operator_divide"),
-                        "operator_equals" => todo!("operator_equals"),
-                        "operator_gt" => todo!("operator_gt"),
+                        "operator_divide" => {
+                            let lhs = input(&mut block, "NUM1")?;
+                            let rhs = input(&mut block, "NUM2")?;
+                            blocks.insert(id, Block::Div(lhs, rhs));
+                        }
+                        "operator_equals" => {
+                            let lhs = input(&mut block, "OPERAND1")?;
+                            let rhs = input(&mut block, "OPERAND2")?;
+                            blocks.insert(id, Block::Eq(lhs, rhs));
+                        }
+                        "operator_gt" => {
+                            let lhs = input(&mut block, "OPERAND1")?;
+                            let rhs = input(&mut block, "OPERAND2")?;
+                            blocks.insert(id, Block::Gt(lhs, rhs));
+                        }
                         "operator_join" => todo!("operator_join"),
                         "operator_length" => todo!("operator_length"),
                         "operator_letter_of" => todo!("operator_letter_of"),
-                        "operator_lt" => todo!("operator_lt"),
+                        "operator_lt" => {
+                            let lhs = input(&mut block, "OPERAND1")?;
+                            let rhs = input(&mut block, "OPERAND2")?;
+                            blocks.insert(id, Block::Lt(lhs, rhs));
+                        }
                         "operator_mathop" => todo!("operator_mathop"),
-                        "operator_mod" => todo!("operator_mod"),
-                        "operator_multiply" => todo!("operator_multiply"),
+                        "operator_mod" => {
+                            let lhs = input(&mut block, "NUM1")?;
+                            let rhs = input(&mut block, "NUM2")?;
+                            blocks.insert(id, Block::Mod(lhs, rhs));
+                        }
+                        "operator_multiply" => {
+                            let lhs = input(&mut block, "NUM1")?;
+                            let rhs = input(&mut block, "NUM2")?;
+                            blocks.insert(id, Block::Mul(lhs, rhs));
+                        }
                         "operator_not" => todo!("operator_not"),
                         "operator_or" => todo!("operator_or"),
-                        "operator_subtract" => todo!("operator_subtract"),
+                        "operator_subtract" => {
+                            let lhs = input(&mut block, "NUM1")?;
+                            let rhs = input(&mut block, "NUM2")?;
+                            blocks.insert(id, Block::Sub(lhs, rhs));
+                        }
                         "pen_clear" => todo!("pen_clear"),
                         "pen_stamp" => todo!("pen_stamp"),
                         "procedures_call" => todo!("procedures_call"),
@@ -168,6 +196,14 @@ enum Block {
     },
 
     Add(Expresssion, Expresssion),
+    Sub(Expresssion, Expresssion),
+    Mul(Expresssion, Expresssion),
+    Div(Expresssion, Expresssion),
+    Mod(Expresssion, Expresssion),
+
+    Lt(Expresssion, Expresssion),
+    Eq(Expresssion, Expresssion),
+    Gt(Expresssion, Expresssion),
 }
 
 enum Expresssion {
