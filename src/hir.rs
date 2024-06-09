@@ -1,5 +1,5 @@
 use crate::de;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     num::NonZeroU32,
@@ -16,7 +16,7 @@ pub struct Project {
 impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
         let mut hats = BTreeMap::new();
-        let blocks = BTreeMap::new();
+        let mut blocks = BTreeMap::new();
 
         let mut generator = Generator::default();
         let mut block_ids = HashMap::new();
@@ -32,7 +32,7 @@ impl Project {
             .map(|target| {
                 let mut my_hats = BTreeSet::new();
 
-                for (id, block) in target.blocks {
+                for (id, mut block) in target.blocks {
                     let id = t(id);
 
                     match &*block.opcode {
@@ -83,7 +83,11 @@ impl Project {
                         "motion_gotoxy" => todo!("motion_gotoxy"),
                         "motion_setx" => todo!("motion_setx"),
                         "motion_xposition" => todo!("motion_xposition"),
-                        "operator_add" => todo!("operator_add"),
+                        "operator_add" => {
+                            let lhs = input(&mut block, "NUM1")?;
+                            let rhs = input(&mut block, "NUM2")?;
+                            blocks.insert(id, Block::Add(lhs, rhs));
+                        }
                         "operator_and" => todo!("operator_and"),
                         "operator_divide" => todo!("operator_divide"),
                         "operator_equals" => todo!("operator_equals"),
@@ -162,6 +166,8 @@ enum Block {
         condition: Expresssion,
         body: Sequence,
     },
+
+    Add(Expresssion, Expresssion),
 }
 
 enum Expresssion {
@@ -194,4 +200,19 @@ impl Generator {
     fn new_block_id(&mut self) -> BlockId {
         BlockId(self.new_raw())
     }
+}
+
+fn input(block: &mut de::Block, name: &str) -> Result<Expresssion> {
+    let input = block
+        .inputs
+        .remove(name)
+        .with_context(|| format!("missing block input: {name:?}"))?;
+    Ok(match input {
+        de::Input::Block(_) => todo!(),
+        de::Input::Number(n) => Expresssion::Immediate(Immediate::Number(n)),
+        de::Input::String(s) => Expresssion::Immediate(Immediate::String(s)),
+        de::Input::Broadcast(_) => todo!(),
+        de::Input::Variable(_) => todo!(),
+        de::Input::List(_) => todo!(),
+    })
 }

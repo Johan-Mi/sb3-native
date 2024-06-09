@@ -1,6 +1,6 @@
 mod fields;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{de::Visitor, Deserialize};
 use std::{collections::HashMap, fs::File, path::Path};
 
@@ -42,21 +42,21 @@ struct Variable(String, RawValue);
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
-struct VariableId(String);
+pub struct VariableId(String);
 
 #[derive(Debug, Deserialize)]
 struct List(String, Vec<RawValue>);
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
-struct ListId(String);
+pub struct ListId(String);
 
 #[derive(Debug, Deserialize)]
 pub struct Block {
     pub opcode: String,
     next: Option<BlockId>,
     #[serde(default)]
-    inputs: HashMap<String, Input>,
+    pub inputs: HashMap<String, Input>,
     #[serde(default)]
     fields: Fields,
 }
@@ -67,10 +67,10 @@ pub struct BlockId(String);
 
 #[derive(Debug, Deserialize)]
 #[serde(transparent)]
-struct BroadcastId(String);
+pub struct BroadcastId(String);
 
 #[derive(Debug)]
-enum Input {
+pub enum Input {
     Block(BlockId),
     // Also includes positive numbers, positive integers, integers and angles.
     Number(f64),
