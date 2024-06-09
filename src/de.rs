@@ -1,6 +1,6 @@
 mod fields;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{de::Visitor, Deserialize};
 use std::{collections::HashMap, fs::File, path::Path};
 
