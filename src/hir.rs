@@ -33,11 +33,78 @@ impl Project {
                             todo!("argument_reporter_string_number")
                         }
                         "control_for_each" => todo!("control_for_each"),
-                        "control_if" => todo!("control_if"),
-                        "control_if_else" => todo!("control_if_else"),
-                        "control_repeat" => todo!("control_repeat"),
-                        "control_repeat_until" => todo!("control_repeat_until"),
+                        "control_forever" => {
+                            let body = cx.input(&mut block, "SUBSTACK")?;
+                            blocks.insert(
+                                id,
+                                Block::Forever {
+                                    body: Sequence::default(),
+                                },
+                            );
+                        }
+                        "control_if" => {
+                            let condition =
+                                cx.input(&mut block, "CONDITION")?;
+                            let then = cx.input(&mut block, "SUBSTACK")?;
+                            blocks.insert(
+                                id,
+                                Block::If {
+                                    condition,
+                                    then: Sequence::default(),
+                                    else_: Sequence::default(),
+                                },
+                            );
+                        }
+                        "control_if_else" => {
+                            let condition =
+                                cx.input(&mut block, "CONDITION")?;
+                            let then = cx.input(&mut block, "SUBSTACK")?;
+                            let else_ = cx.input(&mut block, "SUBSTACK2")?;
+                            blocks.insert(
+                                id,
+                                Block::If {
+                                    condition,
+                                    then: Sequence::default(),
+                                    else_: Sequence::default(),
+                                },
+                            );
+                        }
+                        "control_repeat" => {
+                            let times = cx.input(&mut block, "TIMES")?;
+                            let body = cx.input(&mut block, "SUBSTACK")?;
+                            blocks.insert(
+                                id,
+                                Block::Repeat {
+                                    times,
+                                    body: Sequence::default(),
+                                },
+                            );
+                        }
+                        "control_repeat_until" => {
+                            let condition =
+                                cx.input(&mut block, "CONDITION")?;
+                            let body = cx.input(&mut block, "SUBSTACK")?;
+                            blocks.insert(
+                                id,
+                                Block::Until {
+                                    condition,
+                                    body: Sequence::default(),
+                                },
+                            );
+                        }
                         "control_stop" => todo!("control_stop"),
+                        "control_while" => {
+                            let condition =
+                                cx.input(&mut block, "CONDITION")?;
+                            let body = cx.input(&mut block, "SUBSTACK")?;
+                            blocks.insert(
+                                id,
+                                Block::While {
+                                    condition,
+                                    body: Sequence::default(),
+                                },
+                            );
+                        }
                         "data_addtolist" => todo!("data_addtolist"),
                         "data_changevariableby" => {
                             todo!("data_changevariableby")
@@ -61,7 +128,7 @@ impl Project {
                                 id,
                                 Hat {
                                     kind: HatKind::WhenFlagClicked,
-                                    body: Sequence { blocks: Vec::new() },
+                                    body: Sequence::default(),
                                 },
                             );
                             my_hats.insert(id);
@@ -161,6 +228,7 @@ enum HatKind {
     WhenFlagClicked,
 }
 
+#[derive(Default)]
 struct Sequence {
     blocks: Vec<BlockId>,
 }
@@ -185,6 +253,10 @@ enum Block {
     },
     Until {
         condition: Expresssion,
+        body: Sequence,
+    },
+    Repeat {
+        times: Expresssion,
         body: Sequence,
     },
 
