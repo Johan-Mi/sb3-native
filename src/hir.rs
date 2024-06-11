@@ -15,16 +15,9 @@ pub struct Project {
 
 impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
+        let mut cx = LoweringContext::default();
         let mut hats = BTreeMap::new();
         let mut blocks = BTreeMap::new();
-
-        let mut generator = Generator::default();
-        let mut block_ids = HashMap::new();
-        let mut t = |id: de::BlockId| {
-            *block_ids
-                .entry(id)
-                .or_insert_with(|| generator.new_block_id())
-        };
 
         let targets = de
             .targets
@@ -33,7 +26,7 @@ impl Project {
                 let mut my_hats = BTreeSet::new();
 
                 for (id, mut block) in target.blocks {
-                    let id = t(id);
+                    let id = cx.block_id(id);
 
                     match &*block.opcode {
                         "argument_reporter_string_number" => {
@@ -235,6 +228,21 @@ impl Generator {
 
     fn new_block_id(&mut self) -> BlockId {
         BlockId(self.new_raw())
+    }
+}
+
+#[derive(Default)]
+struct LoweringContext {
+    generator: Generator,
+    block_ids: HashMap<de::BlockId, BlockId>,
+}
+
+impl LoweringContext {
+    fn block_id(&mut self, id: de::BlockId) -> BlockId {
+        *self
+            .block_ids
+            .entry(id)
+            .or_insert_with(|| self.generator.new_block_id())
     }
 }
 
