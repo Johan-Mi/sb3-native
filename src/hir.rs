@@ -77,50 +77,50 @@ impl Project {
                         "motion_setx" => todo!("motion_setx"),
                         "motion_xposition" => todo!("motion_xposition"),
                         "operator_add" => {
-                            let lhs = input(&mut block, "NUM1")?;
-                            let rhs = input(&mut block, "NUM2")?;
+                            let lhs = cx.input(&mut block, "NUM1")?;
+                            let rhs = cx.input(&mut block, "NUM2")?;
                             blocks.insert(id, Block::Add(lhs, rhs));
                         }
                         "operator_and" => todo!("operator_and"),
                         "operator_divide" => {
-                            let lhs = input(&mut block, "NUM1")?;
-                            let rhs = input(&mut block, "NUM2")?;
+                            let lhs = cx.input(&mut block, "NUM1")?;
+                            let rhs = cx.input(&mut block, "NUM2")?;
                             blocks.insert(id, Block::Div(lhs, rhs));
                         }
                         "operator_equals" => {
-                            let lhs = input(&mut block, "OPERAND1")?;
-                            let rhs = input(&mut block, "OPERAND2")?;
+                            let lhs = cx.input(&mut block, "OPERAND1")?;
+                            let rhs = cx.input(&mut block, "OPERAND2")?;
                             blocks.insert(id, Block::Eq(lhs, rhs));
                         }
                         "operator_gt" => {
-                            let lhs = input(&mut block, "OPERAND1")?;
-                            let rhs = input(&mut block, "OPERAND2")?;
+                            let lhs = cx.input(&mut block, "OPERAND1")?;
+                            let rhs = cx.input(&mut block, "OPERAND2")?;
                             blocks.insert(id, Block::Gt(lhs, rhs));
                         }
                         "operator_join" => todo!("operator_join"),
                         "operator_length" => todo!("operator_length"),
                         "operator_letter_of" => todo!("operator_letter_of"),
                         "operator_lt" => {
-                            let lhs = input(&mut block, "OPERAND1")?;
-                            let rhs = input(&mut block, "OPERAND2")?;
+                            let lhs = cx.input(&mut block, "OPERAND1")?;
+                            let rhs = cx.input(&mut block, "OPERAND2")?;
                             blocks.insert(id, Block::Lt(lhs, rhs));
                         }
                         "operator_mathop" => todo!("operator_mathop"),
                         "operator_mod" => {
-                            let lhs = input(&mut block, "NUM1")?;
-                            let rhs = input(&mut block, "NUM2")?;
+                            let lhs = cx.input(&mut block, "NUM1")?;
+                            let rhs = cx.input(&mut block, "NUM2")?;
                             blocks.insert(id, Block::Mod(lhs, rhs));
                         }
                         "operator_multiply" => {
-                            let lhs = input(&mut block, "NUM1")?;
-                            let rhs = input(&mut block, "NUM2")?;
+                            let lhs = cx.input(&mut block, "NUM1")?;
+                            let rhs = cx.input(&mut block, "NUM2")?;
                             blocks.insert(id, Block::Mul(lhs, rhs));
                         }
                         "operator_not" => todo!("operator_not"),
                         "operator_or" => todo!("operator_or"),
                         "operator_subtract" => {
-                            let lhs = input(&mut block, "NUM1")?;
-                            let rhs = input(&mut block, "NUM2")?;
+                            let lhs = cx.input(&mut block, "NUM1")?;
+                            let rhs = cx.input(&mut block, "NUM2")?;
                             blocks.insert(id, Block::Sub(lhs, rhs));
                         }
                         "pen_clear" => todo!("pen_clear"),
@@ -244,19 +244,27 @@ impl LoweringContext {
             .entry(id)
             .or_insert_with(|| self.generator.new_block_id())
     }
-}
 
-fn input(block: &mut de::Block, name: &str) -> Result<Expresssion> {
-    let input = block
-        .inputs
-        .remove(name)
-        .with_context(|| format!("missing block input: {name:?}"))?;
-    Ok(match input {
-        de::Input::Block(_) => todo!(),
-        de::Input::Number(n) => Expresssion::Immediate(Immediate::Number(n)),
-        de::Input::String(s) => Expresssion::Immediate(Immediate::String(s)),
-        de::Input::Broadcast(_) => todo!(),
-        de::Input::Variable(_) => todo!(),
-        de::Input::List(_) => todo!(),
-    })
+    fn input(
+        &mut self,
+        block: &mut de::Block,
+        name: &str,
+    ) -> Result<Expresssion> {
+        let input = block
+            .inputs
+            .remove(name)
+            .with_context(|| format!("missing block input: {name:?}"))?;
+        Ok(match input {
+            de::Input::Block(block) => Expresssion::Block(self.block_id(block)),
+            de::Input::Number(n) => {
+                Expresssion::Immediate(Immediate::Number(n))
+            }
+            de::Input::String(s) => {
+                Expresssion::Immediate(Immediate::String(s))
+            }
+            de::Input::Broadcast(_) => todo!(),
+            de::Input::Variable(_) => todo!(),
+            de::Input::List(_) => todo!(),
+        })
+    }
 }
