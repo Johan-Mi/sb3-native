@@ -163,7 +163,31 @@ fn lower_block(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
         ),
-        "operator_mathop" => todo!("operator_mathop"),
+        "operator_mathop" => {
+            let num = cx.input(&mut block, "NUM")?;
+            let operator = block
+                .fields
+                .operator
+                .context("missing field: \"OPERATOR\"")?
+                .0;
+            match &*operator {
+                "abs" => Block::Abs(num),
+                "floor" => Block::Floor(num),
+                "ceiling" => Block::Ceiling(num),
+                "sqrt" => Block::Sqrt(num),
+                "sin" => Block::Sin(num),
+                "cos" => Block::Cos(num),
+                "tan" => Block::Tan(num),
+                "asin" => Block::Asin(num),
+                "acos" => Block::Acos(num),
+                "atan" => Block::Atan(num),
+                "ln" => Block::Ln(num),
+                "log" => Block::Log(num),
+                "e ^" => Block::Exp(num),
+                "10 ^" => Block::Exp10(num),
+                _ => bail!("invalid mathop: {operator:?}"),
+            }
+        }
         "operator_mod" => Block::Mod(
             cx.input(&mut block, "NUM1")?,
             cx.input(&mut block, "NUM2")?,
@@ -267,6 +291,21 @@ enum Block {
         index: Expression,
         string: Expression,
     },
+
+    Abs(Expression),
+    Floor(Expression),
+    Ceiling(Expression),
+    Sqrt(Expression),
+    Sin(Expression),
+    Cos(Expression),
+    Tan(Expression),
+    Asin(Expression),
+    Acos(Expression),
+    Atan(Expression),
+    Ln(Expression),
+    Log(Expression),
+    Exp(Expression),
+    Exp10(Expression),
 }
 
 enum Expression {

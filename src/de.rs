@@ -1,4 +1,4 @@
-mod fields;
+pub mod fields;
 
 use anyhow::Result;
 use serde::{de::Visitor, Deserialize};
@@ -58,7 +58,7 @@ pub struct Block {
     #[serde(default)]
     pub inputs: HashMap<String, Input>,
     #[serde(default)]
-    fields: Fields,
+    pub fields: Fields,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
@@ -264,11 +264,11 @@ impl<'de> Visitor<'de> for NumberOrNumericStringVisitor {
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-struct Fields {
+pub struct Fields {
     variable: Option<fields::Variable>,
     list: Option<fields::List>,
     value: Option<fields::Value>,
-    operator: Option<fields::Operator>,
+    pub operator: Option<fields::Operator>,
     key_option: Option<fields::KeyOption>,
     broadcast_option: Option<fields::BroadcastOption>,
     stop_option: Option<fields::StopOption>,
