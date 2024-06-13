@@ -28,80 +28,62 @@ impl Project {
                 for (id, mut block) in target.blocks {
                     let id = cx.block_id(id);
 
-                    match &*block.opcode {
+                    let block = match &*block.opcode {
                         "argument_reporter_string_number" => {
                             todo!("argument_reporter_string_number")
                         }
                         "control_for_each" => todo!("control_for_each"),
                         "control_forever" => {
                             let body = cx.substack(&mut block, "SUBSTACK")?;
-                            blocks.insert(
-                                id,
-                                Block::Forever { body: body.into() },
-                            );
+                            Some(Block::Forever { body: body.into() })
                         }
                         "control_if" => {
                             let condition =
                                 cx.input(&mut block, "CONDITION")?;
                             let then = cx.substack(&mut block, "SUBSTACK")?;
-                            blocks.insert(
-                                id,
-                                Block::If {
-                                    condition,
-                                    then: then.into(),
-                                    else_: Sequence::default(),
-                                },
-                            );
+                            Some(Block::If {
+                                condition,
+                                then: then.into(),
+                                else_: Sequence::default(),
+                            })
                         }
                         "control_if_else" => {
                             let condition =
                                 cx.input(&mut block, "CONDITION")?;
                             let then = cx.substack(&mut block, "SUBSTACK")?;
                             let else_ = cx.substack(&mut block, "SUBSTACK2")?;
-                            blocks.insert(
-                                id,
-                                Block::If {
-                                    condition,
-                                    then: then.into(),
-                                    else_: else_.into(),
-                                },
-                            );
+                            Some(Block::If {
+                                condition,
+                                then: then.into(),
+                                else_: else_.into(),
+                            })
                         }
                         "control_repeat" => {
                             let times = cx.input(&mut block, "TIMES")?;
                             let body = cx.substack(&mut block, "SUBSTACK")?;
-                            blocks.insert(
-                                id,
-                                Block::Repeat {
-                                    times,
-                                    body: body.into(),
-                                },
-                            );
+                            Some(Block::Repeat {
+                                times,
+                                body: body.into(),
+                            })
                         }
                         "control_repeat_until" => {
                             let condition =
                                 cx.input(&mut block, "CONDITION")?;
                             let body = cx.substack(&mut block, "SUBSTACK")?;
-                            blocks.insert(
-                                id,
-                                Block::Until {
-                                    condition,
-                                    body: body.into(),
-                                },
-                            );
+                            Some(Block::Until {
+                                condition,
+                                body: body.into(),
+                            })
                         }
                         "control_stop" => todo!("control_stop"),
                         "control_while" => {
                             let condition =
                                 cx.input(&mut block, "CONDITION")?;
                             let body = cx.substack(&mut block, "SUBSTACK")?;
-                            blocks.insert(
-                                id,
-                                Block::While {
-                                    condition,
-                                    body: body.into(),
-                                },
-                            );
+                            Some(Block::While {
+                                condition,
+                                body: body.into(),
+                            })
                         }
                         "data_addtolist" => todo!("data_addtolist"),
                         "data_changevariableby" => {
@@ -130,6 +112,7 @@ impl Project {
                                 },
                             );
                             my_hats.insert(id);
+                            None
                         }
                         "looks_hide" => todo!("looks_hide"),
                         "looks_setsizeto" => todo!("looks_setsizeto"),
@@ -144,23 +127,23 @@ impl Project {
                         "operator_add" => {
                             let lhs = cx.input(&mut block, "NUM1")?;
                             let rhs = cx.input(&mut block, "NUM2")?;
-                            blocks.insert(id, Block::Add(lhs, rhs));
+                            Some(Block::Add(lhs, rhs))
                         }
                         "operator_and" => todo!("operator_and"),
                         "operator_divide" => {
                             let lhs = cx.input(&mut block, "NUM1")?;
                             let rhs = cx.input(&mut block, "NUM2")?;
-                            blocks.insert(id, Block::Div(lhs, rhs));
+                            Some(Block::Div(lhs, rhs))
                         }
                         "operator_equals" => {
                             let lhs = cx.input(&mut block, "OPERAND1")?;
                             let rhs = cx.input(&mut block, "OPERAND2")?;
-                            blocks.insert(id, Block::Eq(lhs, rhs));
+                            Some(Block::Eq(lhs, rhs))
                         }
                         "operator_gt" => {
                             let lhs = cx.input(&mut block, "OPERAND1")?;
                             let rhs = cx.input(&mut block, "OPERAND2")?;
-                            blocks.insert(id, Block::Gt(lhs, rhs));
+                            Some(Block::Gt(lhs, rhs))
                         }
                         "operator_join" => todo!("operator_join"),
                         "operator_length" => todo!("operator_length"),
@@ -168,25 +151,25 @@ impl Project {
                         "operator_lt" => {
                             let lhs = cx.input(&mut block, "OPERAND1")?;
                             let rhs = cx.input(&mut block, "OPERAND2")?;
-                            blocks.insert(id, Block::Lt(lhs, rhs));
+                            Some(Block::Lt(lhs, rhs))
                         }
                         "operator_mathop" => todo!("operator_mathop"),
                         "operator_mod" => {
                             let lhs = cx.input(&mut block, "NUM1")?;
                             let rhs = cx.input(&mut block, "NUM2")?;
-                            blocks.insert(id, Block::Mod(lhs, rhs));
+                            Some(Block::Mod(lhs, rhs))
                         }
                         "operator_multiply" => {
                             let lhs = cx.input(&mut block, "NUM1")?;
                             let rhs = cx.input(&mut block, "NUM2")?;
-                            blocks.insert(id, Block::Mul(lhs, rhs));
+                            Some(Block::Mul(lhs, rhs))
                         }
                         "operator_not" => todo!("operator_not"),
                         "operator_or" => todo!("operator_or"),
                         "operator_subtract" => {
                             let lhs = cx.input(&mut block, "NUM1")?;
                             let rhs = cx.input(&mut block, "NUM2")?;
-                            blocks.insert(id, Block::Sub(lhs, rhs));
+                            Some(Block::Sub(lhs, rhs))
                         }
                         "pen_clear" => todo!("pen_clear"),
                         "pen_stamp" => todo!("pen_stamp"),
@@ -198,6 +181,10 @@ impl Project {
                         "sensing_answer" => todo!("sensing_answer"),
                         "sensing_askandwait" => todo!("sensing_askandwait"),
                         opcode => bail!("invalid opcode: {opcode:?}"),
+                    };
+
+                    if let Some(block) = block {
+                        blocks.insert(id, block);
                     }
                 }
 
