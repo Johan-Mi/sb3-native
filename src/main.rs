@@ -13,7 +13,9 @@ fn main() -> Result<()> {
 
     let project = de::Project::load(project_path.as_ref())
         .context("failed to load project")?;
-    eprintln!("{project:#?}");
+    if env::var_os("DUMP_DE").is_some() {
+        eprintln!("{project:#?}");
+    }
 
     let project = hir::Project::lower(project)?;
 
