@@ -211,54 +211,54 @@ impl From<BlockId> for Sequence {
 
 enum Block {
     If {
-        condition: Expresssion,
+        condition: Expression,
         then: Sequence,
         else_: Sequence,
     },
     For {
         variable: Option<VariableId>,
-        times: Expresssion,
+        times: Expression,
         body: Sequence,
     },
     Forever {
         body: Sequence,
     },
     While {
-        condition: Expresssion,
+        condition: Expression,
         body: Sequence,
     },
     Until {
-        condition: Expresssion,
+        condition: Expression,
         body: Sequence,
     },
     Repeat {
-        times: Expresssion,
+        times: Expression,
         body: Sequence,
     },
 
-    Add(Expresssion, Expresssion),
-    Sub(Expresssion, Expresssion),
-    Mul(Expresssion, Expresssion),
-    Div(Expresssion, Expresssion),
-    Mod(Expresssion, Expresssion),
+    Add(Expression, Expression),
+    Sub(Expression, Expression),
+    Mul(Expression, Expression),
+    Div(Expression, Expression),
+    Mod(Expression, Expression),
 
-    Lt(Expresssion, Expresssion),
-    Eq(Expresssion, Expresssion),
-    Gt(Expresssion, Expresssion),
+    Lt(Expression, Expression),
+    Eq(Expression, Expression),
+    Gt(Expression, Expression),
 
-    And(Expresssion, Expresssion),
-    Or(Expresssion, Expresssion),
-    Not(Expresssion),
+    And(Expression, Expression),
+    Or(Expression, Expression),
+    Not(Expression),
 
-    Join(Expresssion, Expresssion),
-    StringLength(Expresssion),
+    Join(Expression, Expression),
+    StringLength(Expression),
     LetterOf {
-        index: Expresssion,
-        string: Expresssion,
+        index: Expression,
+        string: Expression,
     },
 }
 
-enum Expresssion {
+enum Expression {
     Block(BlockId),
     Immediate(Immediate),
 }
@@ -308,19 +308,15 @@ impl LoweringContext {
         &mut self,
         block: &mut de::Block,
         name: &str,
-    ) -> Result<Expresssion> {
+    ) -> Result<Expression> {
         let input = block
             .inputs
             .remove(name)
             .with_context(|| format!("missing block input: {name:?}"))?;
         Ok(match input {
-            de::Input::Block(block) => Expresssion::Block(self.block_id(block)),
-            de::Input::Number(n) => {
-                Expresssion::Immediate(Immediate::Number(n))
-            }
-            de::Input::String(s) => {
-                Expresssion::Immediate(Immediate::String(s))
-            }
+            de::Input::Block(block) => Expression::Block(self.block_id(block)),
+            de::Input::Number(n) => Expression::Immediate(Immediate::Number(n)),
+            de::Input::String(s) => Expression::Immediate(Immediate::String(s)),
             de::Input::Broadcast(_) => todo!(),
             de::Input::Variable(_) => todo!(),
             de::Input::List(_) => todo!(),
