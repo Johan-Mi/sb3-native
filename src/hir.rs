@@ -103,7 +103,10 @@ impl Project {
                             cx.input(&mut block, "NUM1")?,
                             cx.input(&mut block, "NUM2")?,
                         )),
-                        "operator_and" => todo!("operator_and"),
+                        "operator_and" => Some(Block::And(
+                            cx.input(&mut block, "OPERAND1")?,
+                            cx.input(&mut block, "OPERAND2")?,
+                        )),
                         "operator_divide" => Some(Block::Div(
                             cx.input(&mut block, "NUM1")?,
                             cx.input(&mut block, "NUM2")?,
@@ -116,9 +119,17 @@ impl Project {
                             cx.input(&mut block, "OPERAND1")?,
                             cx.input(&mut block, "OPERAND2")?,
                         )),
-                        "operator_join" => todo!("operator_join"),
-                        "operator_length" => todo!("operator_length"),
-                        "operator_letter_of" => todo!("operator_letter_of"),
+                        "operator_join" => Some(Block::Join(
+                            cx.input(&mut block, "STRING1")?,
+                            cx.input(&mut block, "STRING2")?,
+                        )),
+                        "operator_length" => Some(Block::StringLength(
+                            cx.input(&mut block, "STRING")?,
+                        )),
+                        "operator_letter_of" => Some(Block::LetterOf {
+                            index: cx.input(&mut block, "LETTER")?,
+                            string: cx.input(&mut block, "STRING")?,
+                        }),
                         "operator_lt" => Some(Block::Lt(
                             cx.input(&mut block, "OPERAND1")?,
                             cx.input(&mut block, "OPERAND2")?,
@@ -132,8 +143,13 @@ impl Project {
                             cx.input(&mut block, "NUM1")?,
                             cx.input(&mut block, "NUM2")?,
                         )),
-                        "operator_not" => todo!("operator_not"),
-                        "operator_or" => todo!("operator_or"),
+                        "operator_not" => {
+                            Some(Block::Not(cx.input(&mut block, "OPERAND")?))
+                        }
+                        "operator_or" => Some(Block::Or(
+                            cx.input(&mut block, "OPERAND1")?,
+                            cx.input(&mut block, "OPERAND2")?,
+                        )),
                         "operator_subtract" => Some(Block::Sub(
                             cx.input(&mut block, "NUM1")?,
                             cx.input(&mut block, "NUM2")?,
@@ -229,6 +245,17 @@ enum Block {
     Lt(Expresssion, Expresssion),
     Eq(Expresssion, Expresssion),
     Gt(Expresssion, Expresssion),
+
+    And(Expresssion, Expresssion),
+    Or(Expresssion, Expresssion),
+    Not(Expresssion),
+
+    Join(Expresssion, Expresssion),
+    StringLength(Expresssion),
+    LetterOf {
+        index: Expresssion,
+        string: Expresssion,
+    },
 }
 
 enum Expresssion {
