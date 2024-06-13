@@ -37,54 +37,29 @@ impl Project {
                             let body = cx.substack(&mut block, "SUBSTACK")?;
                             Some(Block::Forever { body: body.into() })
                         }
-                        "control_if" => {
-                            let condition =
-                                cx.input(&mut block, "CONDITION")?;
-                            let then = cx.substack(&mut block, "SUBSTACK")?;
-                            Some(Block::If {
-                                condition,
-                                then: then.into(),
-                                else_: Sequence::default(),
-                            })
-                        }
-                        "control_if_else" => {
-                            let condition =
-                                cx.input(&mut block, "CONDITION")?;
-                            let then = cx.substack(&mut block, "SUBSTACK")?;
-                            let else_ = cx.substack(&mut block, "SUBSTACK2")?;
-                            Some(Block::If {
-                                condition,
-                                then: then.into(),
-                                else_: else_.into(),
-                            })
-                        }
-                        "control_repeat" => {
-                            let times = cx.input(&mut block, "TIMES")?;
-                            let body = cx.substack(&mut block, "SUBSTACK")?;
-                            Some(Block::Repeat {
-                                times,
-                                body: body.into(),
-                            })
-                        }
-                        "control_repeat_until" => {
-                            let condition =
-                                cx.input(&mut block, "CONDITION")?;
-                            let body = cx.substack(&mut block, "SUBSTACK")?;
-                            Some(Block::Until {
-                                condition,
-                                body: body.into(),
-                            })
-                        }
+                        "control_if" => Some(Block::If {
+                            condition: cx.input(&mut block, "CONDITION")?,
+                            then: cx.substack(&mut block, "SUBSTACK")?.into(),
+                            else_: Sequence::default(),
+                        }),
+                        "control_if_else" => Some(Block::If {
+                            condition: cx.input(&mut block, "CONDITION")?,
+                            then: cx.substack(&mut block, "SUBSTACK")?.into(),
+                            else_: cx.substack(&mut block, "SUBSTACK2")?.into(),
+                        }),
+                        "control_repeat" => Some(Block::Repeat {
+                            times: cx.input(&mut block, "TIMES")?,
+                            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+                        }),
+                        "control_repeat_until" => Some(Block::Until {
+                            condition: cx.input(&mut block, "CONDITION")?,
+                            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+                        }),
                         "control_stop" => todo!("control_stop"),
-                        "control_while" => {
-                            let condition =
-                                cx.input(&mut block, "CONDITION")?;
-                            let body = cx.substack(&mut block, "SUBSTACK")?;
-                            Some(Block::While {
-                                condition,
-                                body: body.into(),
-                            })
-                        }
+                        "control_while" => Some(Block::While {
+                            condition: cx.input(&mut block, "CONDITION")?,
+                            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+                        }),
                         "data_addtolist" => todo!("data_addtolist"),
                         "data_changevariableby" => {
                             todo!("data_changevariableby")
@@ -124,53 +99,45 @@ impl Project {
                         "motion_gotoxy" => todo!("motion_gotoxy"),
                         "motion_setx" => todo!("motion_setx"),
                         "motion_xposition" => todo!("motion_xposition"),
-                        "operator_add" => {
-                            let lhs = cx.input(&mut block, "NUM1")?;
-                            let rhs = cx.input(&mut block, "NUM2")?;
-                            Some(Block::Add(lhs, rhs))
-                        }
+                        "operator_add" => Some(Block::Add(
+                            cx.input(&mut block, "NUM1")?,
+                            cx.input(&mut block, "NUM2")?,
+                        )),
                         "operator_and" => todo!("operator_and"),
-                        "operator_divide" => {
-                            let lhs = cx.input(&mut block, "NUM1")?;
-                            let rhs = cx.input(&mut block, "NUM2")?;
-                            Some(Block::Div(lhs, rhs))
-                        }
-                        "operator_equals" => {
-                            let lhs = cx.input(&mut block, "OPERAND1")?;
-                            let rhs = cx.input(&mut block, "OPERAND2")?;
-                            Some(Block::Eq(lhs, rhs))
-                        }
-                        "operator_gt" => {
-                            let lhs = cx.input(&mut block, "OPERAND1")?;
-                            let rhs = cx.input(&mut block, "OPERAND2")?;
-                            Some(Block::Gt(lhs, rhs))
-                        }
+                        "operator_divide" => Some(Block::Div(
+                            cx.input(&mut block, "NUM1")?,
+                            cx.input(&mut block, "NUM2")?,
+                        )),
+                        "operator_equals" => Some(Block::Eq(
+                            cx.input(&mut block, "OPERAND1")?,
+                            cx.input(&mut block, "OPERAND2")?,
+                        )),
+                        "operator_gt" => Some(Block::Gt(
+                            cx.input(&mut block, "OPERAND1")?,
+                            cx.input(&mut block, "OPERAND2")?,
+                        )),
                         "operator_join" => todo!("operator_join"),
                         "operator_length" => todo!("operator_length"),
                         "operator_letter_of" => todo!("operator_letter_of"),
-                        "operator_lt" => {
-                            let lhs = cx.input(&mut block, "OPERAND1")?;
-                            let rhs = cx.input(&mut block, "OPERAND2")?;
-                            Some(Block::Lt(lhs, rhs))
-                        }
+                        "operator_lt" => Some(Block::Lt(
+                            cx.input(&mut block, "OPERAND1")?,
+                            cx.input(&mut block, "OPERAND2")?,
+                        )),
                         "operator_mathop" => todo!("operator_mathop"),
-                        "operator_mod" => {
-                            let lhs = cx.input(&mut block, "NUM1")?;
-                            let rhs = cx.input(&mut block, "NUM2")?;
-                            Some(Block::Mod(lhs, rhs))
-                        }
-                        "operator_multiply" => {
-                            let lhs = cx.input(&mut block, "NUM1")?;
-                            let rhs = cx.input(&mut block, "NUM2")?;
-                            Some(Block::Mul(lhs, rhs))
-                        }
+                        "operator_mod" => Some(Block::Mod(
+                            cx.input(&mut block, "NUM1")?,
+                            cx.input(&mut block, "NUM2")?,
+                        )),
+                        "operator_multiply" => Some(Block::Mul(
+                            cx.input(&mut block, "NUM1")?,
+                            cx.input(&mut block, "NUM2")?,
+                        )),
                         "operator_not" => todo!("operator_not"),
                         "operator_or" => todo!("operator_or"),
-                        "operator_subtract" => {
-                            let lhs = cx.input(&mut block, "NUM1")?;
-                            let rhs = cx.input(&mut block, "NUM2")?;
-                            Some(Block::Sub(lhs, rhs))
-                        }
+                        "operator_subtract" => Some(Block::Sub(
+                            cx.input(&mut block, "NUM1")?,
+                            cx.input(&mut block, "NUM2")?,
+                        )),
                         "pen_clear" => todo!("pen_clear"),
                         "pen_stamp" => todo!("pen_stamp"),
                         "procedures_call" => todo!("procedures_call"),
