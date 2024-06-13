@@ -25,148 +25,15 @@ impl Project {
             .map(|target| {
                 let mut my_hats = BTreeSet::new();
 
-                for (id, mut block) in target.blocks {
+                for (id, block) in target.blocks {
                     let id = cx.block_id(id);
-
-                    let block = match &*block.opcode {
-                        "argument_reporter_string_number" => {
-                            todo!("argument_reporter_string_number")
-                        }
-                        "control_for_each" => todo!("control_for_each"),
-                        "control_forever" => {
-                            let body = cx.substack(&mut block, "SUBSTACK")?;
-                            Some(Block::Forever { body: body.into() })
-                        }
-                        "control_if" => Some(Block::If {
-                            condition: cx.input(&mut block, "CONDITION")?,
-                            then: cx.substack(&mut block, "SUBSTACK")?.into(),
-                            else_: Sequence::default(),
-                        }),
-                        "control_if_else" => Some(Block::If {
-                            condition: cx.input(&mut block, "CONDITION")?,
-                            then: cx.substack(&mut block, "SUBSTACK")?.into(),
-                            else_: cx.substack(&mut block, "SUBSTACK2")?.into(),
-                        }),
-                        "control_repeat" => Some(Block::Repeat {
-                            times: cx.input(&mut block, "TIMES")?,
-                            body: cx.substack(&mut block, "SUBSTACK")?.into(),
-                        }),
-                        "control_repeat_until" => Some(Block::Until {
-                            condition: cx.input(&mut block, "CONDITION")?,
-                            body: cx.substack(&mut block, "SUBSTACK")?.into(),
-                        }),
-                        "control_stop" => todo!("control_stop"),
-                        "control_while" => Some(Block::While {
-                            condition: cx.input(&mut block, "CONDITION")?,
-                            body: cx.substack(&mut block, "SUBSTACK")?.into(),
-                        }),
-                        "data_addtolist" => todo!("data_addtolist"),
-                        "data_changevariableby" => {
-                            todo!("data_changevariableby")
-                        }
-                        "data_deletealloflist" => todo!("data_deletealloflist"),
-                        "data_deleteoflist" => todo!("data_deleteoflist"),
-                        "data_itemoflist" => todo!("data_itemoflist"),
-                        "data_lengthoflist" => todo!("data_lengthoflist"),
-                        "data_replaceitemoflist" => {
-                            todo!("data_replaceitemoflist")
-                        }
-                        "data_setvariableto" => todo!("data_setvariableto"),
-                        "event_broadcastandwait" => {
-                            todo!("event_broadcastandwait")
-                        }
-                        "event_whenbroadcastreceived" => {
-                            todo!("event_whenbroadcastreceived")
-                        }
-                        "event_when_flag_clicked" => {
-                            hats.insert(
-                                id,
-                                Hat {
-                                    kind: HatKind::WhenFlagClicked,
-                                    body: Sequence::default(),
-                                },
-                            );
-                            my_hats.insert(id);
-                            None
-                        }
-                        "looks_hide" => todo!("looks_hide"),
-                        "looks_setsizeto" => todo!("looks_setsizeto"),
-                        "looks_switchcostumeto" => {
-                            todo!("looks_switchcostumeto")
-                        }
-                        "motion_changexby" => todo!("motion_changexby"),
-                        "motion_changeyby" => todo!("motion_changeyby"),
-                        "motion_gotoxy" => todo!("motion_gotoxy"),
-                        "motion_setx" => todo!("motion_setx"),
-                        "motion_xposition" => todo!("motion_xposition"),
-                        "operator_add" => Some(Block::Add(
-                            cx.input(&mut block, "NUM1")?,
-                            cx.input(&mut block, "NUM2")?,
-                        )),
-                        "operator_and" => Some(Block::And(
-                            cx.input(&mut block, "OPERAND1")?,
-                            cx.input(&mut block, "OPERAND2")?,
-                        )),
-                        "operator_divide" => Some(Block::Div(
-                            cx.input(&mut block, "NUM1")?,
-                            cx.input(&mut block, "NUM2")?,
-                        )),
-                        "operator_equals" => Some(Block::Eq(
-                            cx.input(&mut block, "OPERAND1")?,
-                            cx.input(&mut block, "OPERAND2")?,
-                        )),
-                        "operator_gt" => Some(Block::Gt(
-                            cx.input(&mut block, "OPERAND1")?,
-                            cx.input(&mut block, "OPERAND2")?,
-                        )),
-                        "operator_join" => Some(Block::Join(
-                            cx.input(&mut block, "STRING1")?,
-                            cx.input(&mut block, "STRING2")?,
-                        )),
-                        "operator_length" => Some(Block::StringLength(
-                            cx.input(&mut block, "STRING")?,
-                        )),
-                        "operator_letter_of" => Some(Block::LetterOf {
-                            index: cx.input(&mut block, "LETTER")?,
-                            string: cx.input(&mut block, "STRING")?,
-                        }),
-                        "operator_lt" => Some(Block::Lt(
-                            cx.input(&mut block, "OPERAND1")?,
-                            cx.input(&mut block, "OPERAND2")?,
-                        )),
-                        "operator_mathop" => todo!("operator_mathop"),
-                        "operator_mod" => Some(Block::Mod(
-                            cx.input(&mut block, "NUM1")?,
-                            cx.input(&mut block, "NUM2")?,
-                        )),
-                        "operator_multiply" => Some(Block::Mul(
-                            cx.input(&mut block, "NUM1")?,
-                            cx.input(&mut block, "NUM2")?,
-                        )),
-                        "operator_not" => {
-                            Some(Block::Not(cx.input(&mut block, "OPERAND")?))
-                        }
-                        "operator_or" => Some(Block::Or(
-                            cx.input(&mut block, "OPERAND1")?,
-                            cx.input(&mut block, "OPERAND2")?,
-                        )),
-                        "operator_subtract" => Some(Block::Sub(
-                            cx.input(&mut block, "NUM1")?,
-                            cx.input(&mut block, "NUM2")?,
-                        )),
-                        "pen_clear" => todo!("pen_clear"),
-                        "pen_stamp" => todo!("pen_stamp"),
-                        "procedures_call" => todo!("procedures_call"),
-                        "procedures_definition" => {
-                            todo!("procedures_definition")
-                        }
-                        "procedures_prototype" => todo!("procedures_prototype"),
-                        "sensing_answer" => todo!("sensing_answer"),
-                        "sensing_askandwait" => todo!("sensing_askandwait"),
-                        opcode => bail!("invalid opcode: {opcode:?}"),
-                    };
-
-                    if let Some(block) = block {
+                    if let Some(block) = lower_block(
+                        block,
+                        id,
+                        &mut hats,
+                        &mut my_hats,
+                        &mut cx,
+                    )? {
                         blocks.insert(id, block);
                     }
                 }
@@ -181,6 +48,150 @@ impl Project {
             blocks,
         })
     }
+}
+
+fn lower_block(
+    mut block: de::Block,
+    id: BlockId,
+    hats: &mut BTreeMap<BlockId, Hat>,
+    my_hats: &mut BTreeSet<BlockId>,
+    cx: &mut LoweringContext,
+) -> Result<Option<Block>, anyhow::Error> {
+    Ok(Some(match &*block.opcode {
+        "argument_reporter_string_number" => {
+            todo!("argument_reporter_string_number")
+        }
+        "control_for_each" => todo!("control_for_each"),
+        "control_forever" => {
+            let body = cx.substack(&mut block, "SUBSTACK")?;
+            Block::Forever { body: body.into() }
+        }
+        "control_if" => Block::If {
+            condition: cx.input(&mut block, "CONDITION")?,
+            then: cx.substack(&mut block, "SUBSTACK")?.into(),
+            else_: Sequence::default(),
+        },
+        "control_if_else" => Block::If {
+            condition: cx.input(&mut block, "CONDITION")?,
+            then: cx.substack(&mut block, "SUBSTACK")?.into(),
+            else_: cx.substack(&mut block, "SUBSTACK2")?.into(),
+        },
+        "control_repeat" => Block::Repeat {
+            times: cx.input(&mut block, "TIMES")?,
+            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+        },
+        "control_repeat_until" => Block::Until {
+            condition: cx.input(&mut block, "CONDITION")?,
+            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+        },
+        "control_stop" => todo!("control_stop"),
+        "control_while" => Block::While {
+            condition: cx.input(&mut block, "CONDITION")?,
+            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+        },
+        "data_addtolist" => todo!("data_addtolist"),
+        "data_changevariableby" => {
+            todo!("data_changevariableby")
+        }
+        "data_deletealloflist" => todo!("data_deletealloflist"),
+        "data_deleteoflist" => todo!("data_deleteoflist"),
+        "data_itemoflist" => todo!("data_itemoflist"),
+        "data_lengthoflist" => todo!("data_lengthoflist"),
+        "data_replaceitemoflist" => {
+            todo!("data_replaceitemoflist")
+        }
+        "data_setvariableto" => todo!("data_setvariableto"),
+        "event_broadcastandwait" => {
+            todo!("event_broadcastandwait")
+        }
+        "event_whenbroadcastreceived" => {
+            todo!("event_whenbroadcastreceived")
+        }
+        "event_when_flag_clicked" => {
+            hats.insert(
+                id,
+                Hat {
+                    kind: HatKind::WhenFlagClicked,
+                    body: Sequence::default(),
+                },
+            );
+            my_hats.insert(id);
+            return Ok(None);
+        }
+        "looks_hide" => todo!("looks_hide"),
+        "looks_setsizeto" => todo!("looks_setsizeto"),
+        "looks_switchcostumeto" => {
+            todo!("looks_switchcostumeto")
+        }
+        "motion_changexby" => todo!("motion_changexby"),
+        "motion_changeyby" => todo!("motion_changeyby"),
+        "motion_gotoxy" => todo!("motion_gotoxy"),
+        "motion_setx" => todo!("motion_setx"),
+        "motion_xposition" => todo!("motion_xposition"),
+        "operator_add" => Block::Add(
+            cx.input(&mut block, "NUM1")?,
+            cx.input(&mut block, "NUM2")?,
+        ),
+        "operator_and" => Block::And(
+            cx.input(&mut block, "OPERAND1")?,
+            cx.input(&mut block, "OPERAND2")?,
+        ),
+        "operator_divide" => Block::Div(
+            cx.input(&mut block, "NUM1")?,
+            cx.input(&mut block, "NUM2")?,
+        ),
+        "operator_equals" => Block::Eq(
+            cx.input(&mut block, "OPERAND1")?,
+            cx.input(&mut block, "OPERAND2")?,
+        ),
+        "operator_gt" => Block::Gt(
+            cx.input(&mut block, "OPERAND1")?,
+            cx.input(&mut block, "OPERAND2")?,
+        ),
+        "operator_join" => Block::Join(
+            cx.input(&mut block, "STRING1")?,
+            cx.input(&mut block, "STRING2")?,
+        ),
+        "operator_length" => {
+            Block::StringLength(cx.input(&mut block, "STRING")?)
+        }
+        "operator_letter_of" => Block::LetterOf {
+            index: cx.input(&mut block, "LETTER")?,
+            string: cx.input(&mut block, "STRING")?,
+        },
+        "operator_lt" => Block::Lt(
+            cx.input(&mut block, "OPERAND1")?,
+            cx.input(&mut block, "OPERAND2")?,
+        ),
+        "operator_mathop" => todo!("operator_mathop"),
+        "operator_mod" => Block::Mod(
+            cx.input(&mut block, "NUM1")?,
+            cx.input(&mut block, "NUM2")?,
+        ),
+        "operator_multiply" => Block::Mul(
+            cx.input(&mut block, "NUM1")?,
+            cx.input(&mut block, "NUM2")?,
+        ),
+        "operator_not" => Block::Not(cx.input(&mut block, "OPERAND")?),
+        "operator_or" => Block::Or(
+            cx.input(&mut block, "OPERAND1")?,
+            cx.input(&mut block, "OPERAND2")?,
+        ),
+        "operator_subtract" => Block::Sub(
+            cx.input(&mut block, "NUM1")?,
+            cx.input(&mut block, "NUM2")?,
+        ),
+        "pen_clear" => todo!("pen_clear"),
+        "pen_stamp" => todo!("pen_stamp"),
+        "procedures_call" => todo!("procedures_call"),
+        "procedures_definition" => {
+            todo!("procedures_definition")
+        }
+        "procedures_prototype" => todo!("procedures_prototype"),
+        "sensing_answer" => todo!("sensing_answer"),
+        "sensing_askandwait" => todo!("sensing_askandwait"),
+        opcode => bail!("invalid opcode: {opcode:?}"),
+    }))
 }
 
 struct Target {
