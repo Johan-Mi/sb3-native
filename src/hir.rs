@@ -134,16 +134,27 @@ fn lower_block(
             my_hats.insert(id);
             return Ok(None);
         }
-        "looks_hide" => todo!("looks_hide"),
-        "looks_setsizeto" => todo!("looks_setsizeto"),
-        "looks_switchcostumeto" => {
-            todo!("looks_switchcostumeto")
-        }
-        "motion_changexby" => todo!("motion_changexby"),
-        "motion_changeyby" => todo!("motion_changeyby"),
-        "motion_gotoxy" => todo!("motion_gotoxy"),
-        "motion_setx" => todo!("motion_setx"),
-        "motion_xposition" => todo!("motion_xposition"),
+        "looks_hide" => Block::Hide,
+        "looks_setsizeto" => Block::SetSize {
+            to: cx.input(&mut block, "SIZE")?,
+        },
+        "looks_switchcostumeto" => Block::SetCostume {
+            to: cx.input(&mut block, "COSTUME")?,
+        },
+        "motion_changexby" => Block::ChangeX {
+            by: cx.input(&mut block, "DX")?,
+        },
+        "motion_changeyby" => Block::ChangeY {
+            by: cx.input(&mut block, "DY")?,
+        },
+        "motion_gotoxy" => Block::GoToXY {
+            x: cx.input(&mut block, "X")?,
+            y: cx.input(&mut block, "Y")?,
+        },
+        "motion_setx" => Block::SetX {
+            to: cx.input(&mut block, "X")?,
+        },
+        "motion_xposition" => Block::XPosition,
         "operator_add" => Block::Add(
             cx.input(&mut block, "NUM1")?,
             cx.input(&mut block, "NUM2")?,
@@ -221,15 +232,15 @@ fn lower_block(
             cx.input(&mut block, "NUM1")?,
             cx.input(&mut block, "NUM2")?,
         ),
-        "pen_clear" => todo!("pen_clear"),
-        "pen_stamp" => todo!("pen_stamp"),
+        "pen_clear" => Block::PenClear,
+        "pen_stamp" => Block::PenStamp,
         "procedures_call" => todo!("procedures_call"),
         "procedures_definition" => {
             todo!("procedures_definition")
         }
         "procedures_prototype" => todo!("procedures_prototype"),
-        "sensing_answer" => todo!("sensing_answer"),
-        "sensing_askandwait" => todo!("sensing_askandwait"),
+        "sensing_answer" => Block::Answer,
+        "sensing_askandwait" => Block::Ask(cx.input(&mut block, "QUESTION")?),
         opcode => bail!("invalid opcode: {opcode:?}"),
     }))
 }
@@ -321,6 +332,33 @@ enum Block {
     Log(Expression),
     Exp(Expression),
     Exp10(Expression),
+
+    Answer,
+    XPosition,
+
+    Ask(Expression),
+    ChangeX {
+        by: Expression,
+    },
+    ChangeY {
+        by: Expression,
+    },
+    GoToXY {
+        x: Expression,
+        y: Expression,
+    },
+    Hide,
+    PenClear,
+    PenStamp,
+    SetCostume {
+        to: Expression,
+    },
+    SetSize {
+        to: Expression,
+    },
+    SetX {
+        to: Expression,
+    },
 }
 
 enum Expression {
