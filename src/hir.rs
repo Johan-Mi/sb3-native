@@ -61,7 +61,23 @@ fn lower_block(
         "argument_reporter_string_number" => {
             todo!("argument_reporter_string_number")
         }
-        "control_for_each" => todo!("control_for_each"),
+        "control_for_each" => {
+            let times = cx.input(&mut block, "TIMES")?;
+            let body = cx.substack(&mut block, "SUBSTACK")?.into();
+            Block::For {
+                variable: Some(
+                    cx.variable_id(
+                        block
+                            .fields
+                            .variable
+                            .context("missing field: \"VARIABLE\"")?
+                            .1,
+                    ),
+                ),
+                times,
+                body,
+            }
+        }
         "control_forever" => {
             let body = cx.substack(&mut block, "SUBSTACK")?;
             Block::Forever { body: body.into() }
@@ -313,6 +329,7 @@ enum Expression {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct BlockId(NonZeroU32);
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct VariableId(NonZeroU32);
 
 struct ListId(NonZeroU32);
@@ -335,12 +352,17 @@ impl Generator {
     fn new_block_id(&mut self) -> BlockId {
         BlockId(self.new_raw())
     }
+
+    fn new_variable_id(&mut self) -> VariableId {
+        VariableId(self.new_raw())
+    }
 }
 
 #[derive(Default)]
 struct LoweringContext {
     generator: Generator,
     block_ids: HashMap<de::BlockId, BlockId>,
+    variable_ids: HashMap<de::VariableId, VariableId>,
 }
 
 impl LoweringContext {
@@ -349,6 +371,13 @@ impl LoweringContext {
             .block_ids
             .entry(id)
             .or_insert_with(|| self.generator.new_block_id())
+    }
+
+    fn variable_id(&mut self, id: de::VariableId) -> VariableId {
+        *self
+            .variable_ids
+            .entry(id)
+            .or_insert_with(|| self.generator.new_variable_id())
     }
 
     fn input(

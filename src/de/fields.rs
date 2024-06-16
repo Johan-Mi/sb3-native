@@ -2,7 +2,7 @@ use super::{ListId, VariableId};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
-pub struct Variable(String, VariableId);
+pub struct Variable(String, pub VariableId);
 #[derive(Deserialize, Debug)]
 pub struct List(String, ListId);
 #[derive(Deserialize, Debug)]
