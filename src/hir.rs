@@ -17,7 +17,6 @@ impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
         let mut cx = LoweringContext::default();
         let mut hats = BTreeMap::new();
-        let mut blocks = BTreeMap::new();
 
         let targets = de
             .targets
@@ -34,7 +33,7 @@ impl Project {
                         &mut my_hats,
                         &mut cx,
                     )? {
-                        blocks.insert(id, block);
+                        cx.blocks.insert(id, block);
                     }
                 }
 
@@ -45,7 +44,7 @@ impl Project {
         Ok(Self {
             targets,
             hats,
-            blocks,
+            blocks: cx.blocks,
         })
     }
 }
@@ -284,6 +283,9 @@ enum Block {
         body: Sequence,
     },
 
+    Variable(VariableId),
+    List(ListId),
+
     Add(Expression, Expression),
     Sub(Expression, Expression),
     Mul(Expression, Expression),
@@ -356,11 +358,16 @@ impl Generator {
     fn new_variable_id(&mut self) -> VariableId {
         VariableId(self.new_raw())
     }
+
+    fn new_list_id(&mut self) -> ListId {
+        ListId(self.new_raw())
+    }
 }
 
 #[derive(Default)]
 struct LoweringContext {
     generator: Generator,
+    blocks: BTreeMap<BlockId, Block>,
     block_ids: HashMap<de::BlockId, BlockId>,
     variable_ids: HashMap<de::VariableId, VariableId>,
 }
@@ -394,7 +401,13 @@ impl LoweringContext {
             de::Input::Number(n) => Expression::Immediate(Immediate::Number(n)),
             de::Input::String(s) => Expression::Immediate(Immediate::String(s)),
             de::Input::Broadcast(_) => todo!(),
-            de::Input::Variable(_) => todo!(),
+            de::Input::Variable(id) => {
+                let variable_block_id = self.generator.new_block_id();
+                let variable_id = self.variable_id(id);
+                self.blocks
+                    .insert(variable_block_id, Block::Variable(variable_id));
+                Expression::Block(variable_block_id)
+            }
             de::Input::List(_) => todo!(),
         })
     }
