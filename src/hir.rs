@@ -334,6 +334,7 @@ struct BlockId(NonZeroU32);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct VariableId(NonZeroU32);
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct ListId(NonZeroU32);
 
 struct Generator(NonZeroU32);
@@ -370,6 +371,7 @@ struct LoweringContext {
     blocks: BTreeMap<BlockId, Block>,
     block_ids: HashMap<de::BlockId, BlockId>,
     variable_ids: HashMap<de::VariableId, VariableId>,
+    list_ids: HashMap<de::ListId, ListId>,
 }
 
 impl LoweringContext {
@@ -385,6 +387,13 @@ impl LoweringContext {
             .variable_ids
             .entry(id)
             .or_insert_with(|| self.generator.new_variable_id())
+    }
+
+    fn list_id(&mut self, id: de::ListId) -> ListId {
+        *self
+            .list_ids
+            .entry(id)
+            .or_insert_with(|| self.generator.new_list_id())
     }
 
     fn input(
@@ -408,7 +417,12 @@ impl LoweringContext {
                     .insert(variable_block_id, Block::Variable(variable_id));
                 Expression::Block(variable_block_id)
             }
-            de::Input::List(_) => todo!(),
+            de::Input::List(id) => {
+                let list_block_id = self.generator.new_block_id();
+                let list_id = self.list_id(id);
+                self.blocks.insert(list_block_id, Block::List(list_id));
+                Expression::Block(list_block_id)
+            }
         })
     }
 
