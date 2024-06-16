@@ -76,7 +76,8 @@ fn lower_block(
             then: cx.substack(&mut block, "SUBSTACK")?.into(),
             else_: cx.substack(&mut block, "SUBSTACK2")?.into(),
         },
-        "control_repeat" => Block::Repeat {
+        "control_repeat" => Block::For {
+            variable: None,
             times: cx.input(&mut block, "TIMES")?,
             body: cx.substack(&mut block, "SUBSTACK")?.into(),
         },
@@ -264,10 +265,6 @@ enum Block {
     },
     Until {
         condition: Expression,
-        body: Sequence,
-    },
-    Repeat {
-        times: Expression,
         body: Sequence,
     },
 
