@@ -4,7 +4,7 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug)]
 pub struct Variable(String, pub VariableId);
 #[derive(Deserialize, Debug)]
-pub struct List(String, ListId);
+pub struct List(String, pub ListId);
 #[derive(Deserialize, Debug)]
 pub struct Value(String, ());
 #[derive(Deserialize, Debug)]

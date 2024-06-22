@@ -105,18 +105,69 @@ fn lower_block(
             condition: cx.input(&mut block, "CONDITION")?,
             body: cx.substack(&mut block, "SUBSTACK")?.into(),
         },
-        "data_addtolist" => todo!("data_addtolist"),
+        "data_addtolist" => {
+            let value = cx.input(&mut block, "ITEM")?;
+            let list = cx.list_id(
+                block.fields.list.context("missing field: \"LIST\"")?.1,
+            );
+            Block::AddToList { list, value }
+        }
         "data_changevariableby" => {
-            todo!("data_changevariableby")
+            let by = cx.input(&mut block, "VALUE")?;
+            let variable = cx.variable_id(
+                block
+                    .fields
+                    .variable
+                    .context("missing field: \"VARIABLE\"")?
+                    .1,
+            );
+            Block::ChangeVariable { variable, by }
         }
-        "data_deletealloflist" => todo!("data_deletealloflist"),
-        "data_deleteoflist" => todo!("data_deleteoflist"),
-        "data_itemoflist" => todo!("data_itemoflist"),
-        "data_lengthoflist" => todo!("data_lengthoflist"),
+        "data_deletealloflist" => {
+            let list = cx.list_id(
+                block.fields.list.context("missing field: \"LIST\"")?.1,
+            );
+            Block::DeleteAllOfList(list)
+        }
+        "data_deleteoflist" => {
+            let index = cx.input(&mut block, "INDEX")?;
+            let list = cx.list_id(
+                block.fields.list.context("missing field: \"LIST\"")?.1,
+            );
+            Block::DeleteItemOfList { list, index }
+        }
+        "data_itemoflist" => {
+            let index = cx.input(&mut block, "INDEX")?;
+            let list = cx.list_id(
+                block.fields.list.context("missing field: \"LIST\"")?.1,
+            );
+            Block::ItemOfList { list, index }
+        }
+        "data_lengthoflist" => {
+            let list = cx.list_id(
+                block.fields.list.context("missing field: \"LIST\"")?.1,
+            );
+            Block::LengthOfList(list)
+        }
         "data_replaceitemoflist" => {
-            todo!("data_replaceitemoflist")
+            let index = cx.input(&mut block, "INDEX")?;
+            let value = cx.input(&mut block, "ITEM")?;
+            let list = cx.list_id(
+                block.fields.list.context("missing field: \"LIST\"")?.1,
+            );
+            Block::ReplaceItemOfList { list, index, value }
         }
-        "data_setvariableto" => todo!("data_setvariableto"),
+        "data_setvariableto" => {
+            let to = cx.input(&mut block, "VALUE")?;
+            let variable = cx.variable_id(
+                block
+                    .fields
+                    .variable
+                    .context("missing field: \"VARIABLE\"")?
+                    .1,
+            );
+            Block::SetVariable { variable, to }
+        }
         "event_broadcastandwait" => {
             todo!("event_broadcastandwait")
         }
@@ -256,6 +307,7 @@ struct Hat {
 
 enum HatKind {
     WhenFlagClicked,
+    WhenReceived { broadcast_name: String },
 }
 
 #[derive(Default)]
@@ -295,7 +347,34 @@ enum Block {
     },
 
     Variable(VariableId),
+    SetVariable {
+        variable: VariableId,
+        to: Expression,
+    },
+    ChangeVariable {
+        variable: VariableId,
+        by: Expression,
+    },
     List(ListId),
+    AddToList {
+        list: ListId,
+        value: Expression,
+    },
+    DeleteAllOfList(ListId),
+    DeleteItemOfList {
+        list: ListId,
+        index: Expression,
+    },
+    ItemOfList {
+        list: ListId,
+        index: Expression,
+    },
+    LengthOfList(ListId),
+    ReplaceItemOfList {
+        list: ListId,
+        index: Expression,
+        value: Expression,
+    },
 
     Add(Expression, Expression),
     Sub(Expression, Expression),

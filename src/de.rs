@@ -266,7 +266,7 @@ impl<'de> Visitor<'de> for NumberOrNumericStringVisitor {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct Fields {
     pub variable: Option<fields::Variable>,
-    list: Option<fields::List>,
+    pub list: Option<fields::List>,
     value: Option<fields::Value>,
     pub operator: Option<fields::Operator>,
     key_option: Option<fields::KeyOption>,
