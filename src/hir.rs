@@ -61,7 +61,7 @@ fn lower_block(
             todo!("argument_reporter_string_number")
         }
         "control_for_each" => {
-            let times = cx.input(&mut block, "TIMES")?;
+            let times = cx.input(&mut block, "VALUE")?;
             let body = cx.substack(&mut block, "SUBSTACK")?.into();
             Block::For {
                 variable: Some(
