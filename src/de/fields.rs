@@ -14,6 +14,6 @@ pub struct KeyOption(String, ());
 #[derive(Deserialize, Debug)]
 pub struct BroadcastOption(pub String, ());
 #[derive(Deserialize, Debug)]
-pub struct StopOption(String, ());
+pub struct StopOption(pub String, ());
 #[derive(Deserialize, Debug)]
 pub struct CloneOption(String, ());

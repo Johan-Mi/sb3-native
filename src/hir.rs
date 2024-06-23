@@ -100,7 +100,21 @@ fn lower_block(
             condition: cx.input(&mut block, "CONDITION")?,
             body: cx.substack(&mut block, "SUBSTACK")?.into(),
         },
-        "control_stop" => todo!("control_stop"),
+        "control_stop" => {
+            let stop_option = &*block
+                .fields
+                .stop_option
+                .context("missing field: \"STOP_OPTION\"")?
+                .0;
+            match stop_option {
+                "all" => Block::StopAll,
+                "other scripts in sprite" | "other scripts in stage" => {
+                    Block::StopOtherScriptsInSprite
+                }
+                "this script" => Block::StopThisScript,
+                _ => bail!("invalid stop option: {stop_option:?}"),
+            }
+        }
         "control_while" => Block::While {
             condition: cx.input(&mut block, "CONDITION")?,
             body: cx.substack(&mut block, "SUBSTACK")?.into(),
@@ -358,6 +372,10 @@ enum Block {
         condition: Expression,
         body: Sequence,
     },
+
+    StopAll,
+    StopOtherScriptsInSprite,
+    StopThisScript,
 
     Variable(VariableId),
     SetVariable {
