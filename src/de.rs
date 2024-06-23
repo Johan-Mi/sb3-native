@@ -270,7 +270,7 @@ pub struct Fields {
     value: Option<fields::Value>,
     pub operator: Option<fields::Operator>,
     key_option: Option<fields::KeyOption>,
-    broadcast_option: Option<fields::BroadcastOption>,
+    pub broadcast_option: Option<fields::BroadcastOption>,
     stop_option: Option<fields::StopOption>,
     clone_option: Option<fields::CloneOption>,
 }

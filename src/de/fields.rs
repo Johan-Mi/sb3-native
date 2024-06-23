@@ -12,7 +12,7 @@ pub struct Operator(pub String, ());
 #[derive(Deserialize, Debug)]
 pub struct KeyOption(String, ());
 #[derive(Deserialize, Debug)]
-pub struct BroadcastOption(String, ());
+pub struct BroadcastOption(pub String, ());
 #[derive(Deserialize, Debug)]
 pub struct StopOption(String, ());
 #[derive(Deserialize, Debug)]

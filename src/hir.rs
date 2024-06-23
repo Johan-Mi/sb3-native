@@ -172,7 +172,20 @@ fn lower_block(
             todo!("event_broadcastandwait")
         }
         "event_whenbroadcastreceived" => {
-            todo!("event_whenbroadcastreceived")
+            let broadcast_name = block
+                .fields
+                .broadcast_option
+                .context("missing field: \"BROADCAST_OPTION\"")?
+                .0;
+            hats.insert(
+                id,
+                Hat {
+                    kind: HatKind::WhenReceived { broadcast_name },
+                    body: Sequence::default(),
+                },
+            );
+            my_hats.insert(id);
+            return Ok(None);
         }
         "event_when_flag_clicked" => {
             hats.insert(
