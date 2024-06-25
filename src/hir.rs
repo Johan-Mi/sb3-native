@@ -183,7 +183,7 @@ fn lower_block(
             Block::SetVariable { variable, to }
         }
         "event_broadcastandwait" => {
-            todo!("event_broadcastandwait")
+            Block::BroadcastAndWait(cx.input(&mut block, "BROADCAST_INPUT")?)
         }
         "event_whenbroadcastreceived" => {
             let broadcast_name = block
@@ -376,6 +376,8 @@ enum Block {
     StopAll,
     StopOtherScriptsInSprite,
     StopThisScript,
+
+    BroadcastAndWait(Expression),
 
     Variable(VariableId),
     SetVariable {
