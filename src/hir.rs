@@ -57,9 +57,7 @@ fn lower_block(
     cx: &mut LoweringContext,
 ) -> Result<Option<Block>, anyhow::Error> {
     Ok(Some(match &*block.opcode {
-        "argument_reporter_string_number" => {
-            todo!("argument_reporter_string_number")
-        }
+        "argument_reporter_string_number" => Block::Parameter,
         "control_for_each" => {
             let times = cx.input(&mut block, "VALUE")?;
             let body = cx.substack(&mut block, "SUBSTACK")?.into();
@@ -312,11 +310,19 @@ fn lower_block(
         ),
         "pen_clear" => Block::PenClear,
         "pen_stamp" => Block::PenStamp,
-        "procedures_call" => todo!("procedures_call"),
+        "procedures_call" => Block::CallProcedure,
         "procedures_definition" => {
-            todo!("procedures_definition")
+            hats.insert(
+                id,
+                Hat {
+                    kind: HatKind::Procedure,
+                    body: Sequence::default(),
+                },
+            );
+            my_hats.insert(id);
+            return Ok(None);
         }
-        "procedures_prototype" => todo!("procedures_prototype"),
+        "procedures_prototype" => return Ok(None),
         "sensing_answer" => Block::Answer,
         "sensing_askandwait" => Block::Ask(cx.input(&mut block, "QUESTION")?),
         opcode => bail!("invalid opcode: {opcode:?}"),
@@ -335,6 +341,7 @@ struct Hat {
 enum HatKind {
     WhenFlagClicked,
     WhenReceived { broadcast_name: String },
+    Procedure,
 }
 
 #[derive(Default)]
@@ -372,6 +379,9 @@ enum Block {
         condition: Expression,
         body: Sequence,
     },
+
+    CallProcedure,
+    Parameter,
 
     StopAll,
     StopOtherScriptsInSprite,
