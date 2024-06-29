@@ -199,7 +199,7 @@ fn lower_block(
             my_hats.insert(id);
             return Ok(None);
         }
-        "event_when_flag_clicked" => {
+        "event_whenflagclicked" => {
             hats.insert(
                 id,
                 Hat {
