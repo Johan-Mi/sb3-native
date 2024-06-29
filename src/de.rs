@@ -2,7 +2,7 @@ pub mod fields;
 
 use anyhow::Result;
 use serde::{de::Visitor, Deserialize};
-use std::{collections::HashMap, fs::File, path::Path};
+use std::{collections::HashMap, fmt, fs::File, path::Path};
 
 #[derive(Debug, Deserialize)]
 pub struct Project {
@@ -29,12 +29,22 @@ pub struct Target {
     pub blocks: HashMap<BlockId, Block>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(untagged)]
 pub enum RawValue {
     String(String),
     Number(f64),
     Bool(bool),
+}
+
+impl fmt::Debug for RawValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::String(s) => fmt::Debug::fmt(s, f),
+            Self::Number(n) => fmt::Debug::fmt(n, f),
+            Self::Bool(b) => fmt::Debug::fmt(b, f),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
