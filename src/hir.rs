@@ -7,6 +7,7 @@ use std::{
 
 pub use de::RawValue as Immediate;
 
+#[derive(Debug)]
 pub struct Project {
     targets: Vec<Target>,
     hats: BTreeMap<BlockId, Hat>,
@@ -329,22 +330,25 @@ fn lower_block(
     }))
 }
 
+#[derive(Debug)]
 struct Target {
     hats: BTreeSet<BlockId>,
 }
 
+#[derive(Debug)]
 struct Hat {
     kind: HatKind,
     body: Sequence,
 }
 
+#[derive(Debug)]
 enum HatKind {
     WhenFlagClicked,
     WhenReceived { broadcast_name: String },
     Procedure,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct Sequence {
     blocks: Vec<BlockId>,
 }
@@ -357,6 +361,7 @@ impl From<BlockId> for Sequence {
     }
 }
 
+#[derive(Debug)]
 enum Block {
     If {
         condition: Expression,
@@ -483,18 +488,19 @@ enum Block {
     },
 }
 
+#[derive(Debug)]
 enum Expression {
     Block(BlockId),
     Immediate(Immediate),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct BlockId(NonZeroU32);
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct VariableId(NonZeroU32);
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct ListId(NonZeroU32);
 
 struct Generator(NonZeroU32);
