@@ -2,6 +2,7 @@ use crate::de;
 use anyhow::{bail, Context, Result};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
+    fmt,
     num::NonZeroU32,
 };
 
@@ -488,20 +489,46 @@ enum Block {
     },
 }
 
-#[derive(Debug)]
 enum Expression {
     Block(BlockId),
     Immediate(Immediate),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+impl fmt::Debug for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Block(block) => block.fmt(f),
+            Self::Immediate(immediate) => immediate.fmt(f),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct BlockId(NonZeroU32);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+impl fmt::Debug for BlockId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "b{}", self.0)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct VariableId(NonZeroU32);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+impl fmt::Debug for VariableId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct ListId(NonZeroU32);
+
+impl fmt::Debug for ListId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "l{}", self.0)
+    }
+}
 
 struct Generator(NonZeroU32);
 
