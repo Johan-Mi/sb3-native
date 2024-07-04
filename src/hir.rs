@@ -62,7 +62,7 @@ fn lower_block(
         "argument_reporter_string_number" => Block::Parameter,
         "control_for_each" => {
             let times = cx.input(&mut block, "VALUE")?;
-            let body = cx.substack(&mut block, "SUBSTACK")?.into();
+            let body = cx.substack(&mut block, "SUBSTACK")?;
             Block::For {
                 variable: Some(
                     cx.variable_id(
@@ -79,26 +79,26 @@ fn lower_block(
         }
         "control_forever" => {
             let body = cx.substack(&mut block, "SUBSTACK")?;
-            Block::Forever { body: body.into() }
+            Block::Forever { body }
         }
         "control_if" => Block::If {
             condition: cx.input(&mut block, "CONDITION")?,
-            then: cx.substack(&mut block, "SUBSTACK")?.into(),
+            then: cx.substack(&mut block, "SUBSTACK")?,
             else_: Sequence::default(),
         },
         "control_if_else" => Block::If {
             condition: cx.input(&mut block, "CONDITION")?,
-            then: cx.substack(&mut block, "SUBSTACK")?.into(),
-            else_: cx.substack(&mut block, "SUBSTACK2")?.into(),
+            then: cx.substack(&mut block, "SUBSTACK")?,
+            else_: cx.substack(&mut block, "SUBSTACK2")?,
         },
         "control_repeat" => Block::For {
             variable: None,
             times: cx.input(&mut block, "TIMES")?,
-            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+            body: cx.substack(&mut block, "SUBSTACK")?,
         },
         "control_repeat_until" => Block::Until {
             condition: cx.input(&mut block, "CONDITION")?,
-            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+            body: cx.substack(&mut block, "SUBSTACK")?,
         },
         "control_stop" => {
             let stop_option = &*block
@@ -117,7 +117,7 @@ fn lower_block(
         }
         "control_while" => Block::While {
             condition: cx.input(&mut block, "CONDITION")?,
-            body: cx.substack(&mut block, "SUBSTACK")?.into(),
+            body: cx.substack(&mut block, "SUBSTACK")?,
         },
         "data_addtolist" => {
             let value = cx.input(&mut block, "ITEM")?;
@@ -623,10 +623,10 @@ impl LoweringContext {
         &mut self,
         block: &mut de::Block,
         name: &str,
-    ) -> Result<BlockId> {
+    ) -> Result<Sequence> {
         match block.inputs.remove(name) {
             None => bail!("missing substack: {name:?}"),
-            Some(de::Input::Block(block)) => Ok(self.block_id(block)),
+            Some(de::Input::Block(block)) => Ok(self.block_id(block).into()),
             Some(_) => bail!("substack {name:?} must be a block ID"),
         }
     }
