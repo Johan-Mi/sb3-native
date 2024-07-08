@@ -20,6 +20,7 @@ impl Project {
         let mut cx = LoweringContext::default();
 
         let mut predecessors = BTreeMap::<_, Vec<_>>::new();
+        let mut nexts = BTreeMap::new();
         for (id, block) in de.targets.iter().flat_map(|it| &it.blocks) {
             let id = cx.block_id(id.clone());
             for input in block.inputs.values() {
@@ -31,15 +32,13 @@ impl Project {
                 }
             }
             if let Some(next) = &block.next {
-                predecessors
-                    .entry(cx.block_id(next.clone()))
-                    .or_default()
-                    .push(id);
+                nexts.insert(id, cx.block_id(next.clone()));
             }
         }
 
-        if std::env::var_os("DUMP_PREDECESSORS").is_some() {
+        if std::env::var_os("DUMP_HIR_CFG").is_some() {
             eprintln!("{predecessors:#?}");
+            eprintln!("{nexts:#?}");
         }
 
         let mut hats = BTreeMap::new();
