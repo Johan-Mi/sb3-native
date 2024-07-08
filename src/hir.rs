@@ -74,6 +74,10 @@ impl Project {
             })
             .collect::<Result<_>>()?;
 
+        for hat in hats.values_mut() {
+            fill_sequence(&mut hat.body, &predecessors, &nexts);
+        }
+
         for block in cx.blocks.values_mut() {
             match block {
                 Block::If { then, else_, .. } => {
@@ -265,7 +269,7 @@ fn lower_block(
                 id,
                 Hat {
                     kind: HatKind::WhenReceived { broadcast_name },
-                    body: Sequence::default(),
+                    body: Sequence::from(block.next.map(|it| cx.block_id(it))),
                 },
             );
             my_hats.insert(id);
@@ -276,7 +280,7 @@ fn lower_block(
                 id,
                 Hat {
                     kind: HatKind::WhenFlagClicked,
-                    body: Sequence::default(),
+                    body: Sequence::from(block.next.map(|it| cx.block_id(it))),
                 },
             );
             my_hats.insert(id);
@@ -388,7 +392,7 @@ fn lower_block(
                 id,
                 Hat {
                     kind: HatKind::Procedure,
-                    body: Sequence::default(),
+                    body: Sequence::from(block.next.map(|it| cx.block_id(it))),
                 },
             );
             my_hats.insert(id);
@@ -429,6 +433,12 @@ impl From<BlockId> for Sequence {
         Self {
             blocks: Vec::from([value]),
         }
+    }
+}
+
+impl From<Option<BlockId>> for Sequence {
+    fn from(value: Option<BlockId>) -> Self {
+        value.map_or_else(Self::default, Self::from)
     }
 }
 
