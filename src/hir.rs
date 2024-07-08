@@ -19,17 +19,23 @@ impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
         let mut cx = LoweringContext::default();
 
-        let mut predecessors = BTreeMap::<_, Vec<_>>::new();
+        let mut predecessors = BTreeMap::new();
         let mut nexts = BTreeMap::new();
         for (id, block) in de.targets.iter().flat_map(|it| &it.blocks) {
             let id = cx.block_id(id.clone());
-            for input in block.inputs.values() {
-                if let de::Input::Block(input) = input {
-                    predecessors
-                        .entry(id)
-                        .or_default()
-                        .push(cx.block_id(input.clone()));
-                }
+            let p = block
+                .inputs
+                .values()
+                .filter_map(|it| {
+                    if let de::Input::Block(input) = it {
+                        Some(cx.block_id(input.clone()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            if !p.is_empty() {
+                predecessors.insert(id, p);
             }
             if let Some(next) = &block.next {
                 nexts.insert(id, cx.block_id(next.clone()));
