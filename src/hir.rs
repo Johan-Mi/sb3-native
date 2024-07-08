@@ -74,12 +74,51 @@ impl Project {
             })
             .collect::<Result<_>>()?;
 
+        for block in cx.blocks.values_mut() {
+            match block {
+                Block::If { then, else_, .. } => {
+                    fill_sequence(then, &predecessors, &nexts);
+                    fill_sequence(else_, &predecessors, &nexts);
+                }
+                Block::For { body, .. }
+                | Block::Forever { body }
+                | Block::While { body, .. }
+                | Block::Until { body, .. } => {
+                    fill_sequence(body, &predecessors, &nexts);
+                }
+                _ => {}
+            }
+        }
+
         Ok(Self {
             targets,
             hats,
             blocks: cx.blocks,
         })
     }
+}
+
+fn fill_sequence(
+    sequence: &mut Sequence,
+    predecessors: &BTreeMap<BlockId, Vec<BlockId>>,
+    nexts: &BTreeMap<BlockId, BlockId>,
+) {
+    let mut next = sequence.blocks.pop();
+    while let Some(block) = next {
+        append_predecessors(sequence, block, predecessors);
+        next = nexts.get(&block).copied();
+    }
+}
+
+fn append_predecessors(
+    sequence: &mut Sequence,
+    block: BlockId,
+    predecessors: &BTreeMap<BlockId, Vec<BlockId>>,
+) {
+    for &predecessor in predecessors.get(&block).into_iter().flatten() {
+        append_predecessors(sequence, predecessor, predecessors);
+    }
+    sequence.blocks.push(block);
 }
 
 fn lower_block(
