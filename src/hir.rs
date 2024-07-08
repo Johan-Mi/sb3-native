@@ -19,28 +19,30 @@ impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
         let mut cx = LoweringContext::default();
 
-        let mut predecessors = BTreeMap::new();
         let mut nexts = BTreeMap::new();
-        for (id, block) in de.targets.iter().flat_map(|it| &it.blocks) {
-            let id = cx.block_id(id.clone());
-            let p = block
-                .inputs
-                .values()
-                .filter_map(|it| {
-                    if let de::Input::Block(input) = it {
-                        Some(cx.block_id(input.clone()))
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
-            if !p.is_empty() {
-                predecessors.insert(id, p);
-            }
-            if let Some(next) = &block.next {
-                nexts.insert(id, cx.block_id(next.clone()));
-            }
-        }
+        let predecessors = de
+            .targets
+            .iter()
+            .flat_map(|it| &it.blocks)
+            .filter_map(|(id, block)| {
+                let id = cx.block_id(id.clone());
+                let p = block
+                    .inputs
+                    .values()
+                    .filter_map(|it| {
+                        if let de::Input::Block(input) = it {
+                            Some(cx.block_id(input.clone()))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if let Some(next) = &block.next {
+                    nexts.insert(id, cx.block_id(next.clone()));
+                }
+                (!p.is_empty()).then_some((id, p))
+            })
+            .collect::<BTreeMap<_, _>>();
 
         if std::env::var_os("DUMP_HIR_CFG").is_some() {
             eprintln!("{predecessors:#?}");
