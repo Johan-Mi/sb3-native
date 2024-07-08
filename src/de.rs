@@ -64,14 +64,14 @@ pub struct ListId(String);
 #[derive(Debug, Deserialize)]
 pub struct Block {
     pub opcode: String,
-    next: Option<BlockId>,
+    pub next: Option<BlockId>,
     #[serde(default)]
     pub inputs: HashMap<String, Input>,
     #[serde(default)]
     pub fields: Fields,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct BlockId(String);
 
