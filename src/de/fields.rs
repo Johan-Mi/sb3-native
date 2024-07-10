@@ -1,3 +1,6 @@
+// Unit fields are required because the schema contains `null`s.
+#![allow(clippy::manual_non_exhaustive)]
+
 use super::{ListId, VariableId};
 use serde::Deserialize;
 
