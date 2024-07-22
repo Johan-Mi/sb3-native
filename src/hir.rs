@@ -29,12 +29,16 @@ impl Project {
                 let p = block
                     .inputs
                     .values()
-                    .filter_map(|it| {
-                        if let de::Input::Block(input) = it {
+                    .filter_map(|it| match it {
+                        de::Input::Block(input) => {
                             Some(cx.block_id(input.clone()))
-                        } else {
-                            None
                         }
+                        de::Input::Variable(_) | de::Input::List(_) => {
+                            let id = cx.generator.new_block_id();
+                            cx.pseudos.insert(it, id);
+                            Some(id)
+                        }
+                        _ => None,
                     })
                     .collect::<Vec<_>>();
                 if let Some(next) = &block.next {
@@ -645,6 +649,7 @@ struct LoweringContext {
     block_ids: HashMap<de::BlockId, BlockId>,
     variable_ids: HashMap<de::VariableId, VariableId>,
     list_ids: HashMap<de::ListId, ListId>,
+    pseudos: HashMap<*const de::Input, BlockId>,
 }
 
 impl LoweringContext {
@@ -674,24 +679,26 @@ impl LoweringContext {
         block: &mut de::Block,
         name: &str,
     ) -> Result<Expression> {
-        let input = block
+        let ptr = block
             .inputs
-            .remove(name)
-            .with_context(|| format!("missing block input: {name:?}"))?;
+            .get(name)
+            .with_context(|| format!("missing block input: {name:?}"))?
+            as _;
+        let input = block.inputs.remove(name).unwrap();
         Ok(match input {
             de::Input::Block(block) => Expression::Block(self.block_id(block)),
             de::Input::Number(n) => Expression::Immediate(Immediate::Number(n)),
             de::Input::String(s) => Expression::Immediate(Immediate::String(s)),
             de::Input::Broadcast(_) => todo!(),
             de::Input::Variable(id) => {
-                let variable_block_id = self.generator.new_block_id();
+                let variable_block_id = self.pseudos[&ptr];
                 let variable_id = self.variable_id(id);
                 self.blocks
                     .insert(variable_block_id, Block::Variable(variable_id));
                 Expression::Block(variable_block_id)
             }
             de::Input::List(id) => {
-                let list_block_id = self.generator.new_block_id();
+                let list_block_id = self.pseudos[&ptr];
                 let list_id = self.list_id(id);
                 self.blocks.insert(list_block_id, Block::List(list_id));
                 Expression::Block(list_block_id)
