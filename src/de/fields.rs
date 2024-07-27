@@ -9,7 +9,7 @@ pub struct Variable(String, pub VariableId);
 #[derive(Deserialize, Debug)]
 pub struct List(String, pub ListId);
 #[derive(Deserialize, Debug)]
-pub struct Value(String, ());
+pub struct Value(pub String, ());
 #[derive(Deserialize, Debug)]
 pub struct Operator(pub String, ());
 #[derive(Deserialize, Debug)]

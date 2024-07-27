@@ -137,7 +137,9 @@ fn lower_block(
     cx: &mut LoweringContext,
 ) -> Result<Option<Block>, anyhow::Error> {
     Ok(Some(match &*block.opcode {
-        "argument_reporter_string_number" => Block::Parameter,
+        "argument_reporter_string_number" => Block::Parameter(cx.parameter_id(
+            block.fields.value.context("missing field: \"VALUE\"")?.0,
+        )),
         "control_for_each" => {
             let times = cx.input(&mut block, "VALUE")?;
             let body = cx.substack(&mut block, "SUBSTACK")?;
@@ -471,7 +473,7 @@ enum Block {
     },
 
     CallProcedure,
-    Parameter,
+    Parameter(ParameterId),
 
     StopAll,
     StopOtherScriptsInSprite,
@@ -614,6 +616,15 @@ impl fmt::Debug for ListId {
     }
 }
 
+#[derive(Clone, Copy)]
+struct ParameterId(NonZeroU32);
+
+impl fmt::Debug for ParameterId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "p{}", self.0)
+    }
+}
+
 struct Generator(NonZeroU32);
 
 impl Default for Generator {
@@ -640,6 +651,10 @@ impl Generator {
     fn new_list_id(&mut self) -> ListId {
         ListId(self.new_raw())
     }
+
+    fn new_parameter_id(&mut self) -> ParameterId {
+        ParameterId(self.new_raw())
+    }
 }
 
 #[derive(Default)]
@@ -649,6 +664,7 @@ struct LoweringContext {
     block_ids: HashMap<de::BlockId, BlockId>,
     variable_ids: HashMap<de::VariableId, VariableId>,
     list_ids: HashMap<de::ListId, ListId>,
+    parameter_ids: HashMap<String, ParameterId>,
     pseudos: HashMap<*const de::Input, BlockId>,
 }
 
@@ -672,6 +688,13 @@ impl LoweringContext {
             .list_ids
             .entry(id)
             .or_insert_with(|| self.generator.new_list_id())
+    }
+
+    fn parameter_id(&mut self, id: String) -> ParameterId {
+        *self
+            .parameter_ids
+            .entry(id)
+            .or_insert_with(|| self.generator.new_parameter_id())
     }
 
     fn input(

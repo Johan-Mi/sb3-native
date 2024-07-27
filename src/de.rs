@@ -277,7 +277,7 @@ impl<'de> Visitor<'de> for NumberOrNumericStringVisitor {
 pub struct Fields {
     pub variable: Option<fields::Variable>,
     pub list: Option<fields::List>,
-    value: Option<fields::Value>,
+    pub value: Option<fields::Value>,
     pub operator: Option<fields::Operator>,
     key_option: Option<fields::KeyOption>,
     pub broadcast_option: Option<fields::BroadcastOption>,
