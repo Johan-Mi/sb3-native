@@ -35,7 +35,7 @@ impl Project {
                         }
                         de::Input::Variable(_) | de::Input::List(_) => {
                             let id = cx.generator.new_block_id();
-                            cx.pseudos.insert(it, id);
+                            assert!(cx.pseudos.insert(it, id).is_none());
                             Some(id)
                         }
                         _ => None,
