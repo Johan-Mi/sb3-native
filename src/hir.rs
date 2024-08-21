@@ -11,8 +11,8 @@ pub use de::RawValue as Immediate;
 #[derive(Debug)]
 pub struct Project {
     targets: Vec<Target>,
-    hats: BTreeMap<BlockId, Hat>,
-    blocks: BTreeMap<BlockId, Block>,
+    pub hats: BTreeMap<BlockId, Hat>,
+    pub blocks: BTreeMap<BlockId, Block>,
 }
 
 impl Project {
@@ -431,9 +431,9 @@ struct Target {
 }
 
 #[derive(Debug)]
-struct Hat {
+pub struct Hat {
     kind: HatKind,
-    body: Sequence,
+    pub body: Sequence,
 }
 
 #[derive(Debug)]
@@ -444,8 +444,8 @@ enum HatKind {
 }
 
 #[derive(Debug, Default)]
-struct Sequence {
-    blocks: Vec<BlockId>,
+pub struct Sequence {
+    pub blocks: Vec<BlockId>,
 }
 
 impl From<BlockId> for Sequence {
@@ -463,7 +463,7 @@ impl From<Option<BlockId>> for Sequence {
 }
 
 #[derive(Debug)]
-enum Block {
+pub enum Block {
     If {
         condition: Expression,
         then: Sequence,
@@ -591,7 +591,7 @@ enum Block {
     },
 }
 
-enum Expression {
+pub enum Expression {
     Block(BlockId),
     Immediate(Immediate),
 }
@@ -606,7 +606,7 @@ impl fmt::Debug for Expression {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct BlockId(NonZeroU32);
+pub struct BlockId(NonZeroU32);
 
 impl fmt::Debug for BlockId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -615,7 +615,7 @@ impl fmt::Debug for BlockId {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct VariableId(NonZeroU32);
+pub struct VariableId(NonZeroU32);
 
 impl fmt::Debug for VariableId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -624,7 +624,7 @@ impl fmt::Debug for VariableId {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct ListId(NonZeroU32);
+pub struct ListId(NonZeroU32);
 
 impl fmt::Debug for ListId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -633,7 +633,7 @@ impl fmt::Debug for ListId {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct ParameterId(NonZeroU32);
+pub struct ParameterId(NonZeroU32);
 
 impl fmt::Debug for ParameterId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
