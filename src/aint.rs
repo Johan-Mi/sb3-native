@@ -79,6 +79,7 @@ pub fn interpret(project: &hir::Project) -> BTreeMap<hir::BlockId, Lattice> {
         blocks: BTreeMap::new(),
         variables: BTreeMap::new(),
         lists: BTreeMap::new(),
+        parameters: BTreeMap::new(),
         project,
     };
     for hat in project.hats.values() {
@@ -91,6 +92,7 @@ struct Interpreter<'a> {
     blocks: BTreeMap<hir::BlockId, Lattice>,
     variables: BTreeMap<hir::VariableId, Lattice>,
     lists: BTreeMap<hir::ListId, Lattice>,
+    parameters: BTreeMap<hir::ParameterId, Lattice>,
     project: &'a hir::Project,
 }
 
@@ -108,13 +110,13 @@ impl Interpreter<'_> {
         };
         let lattice = match block {
             B::CallProcedure { arguments } => {
-                // TODO: Update parameter types
-                // for (parameter, argument) in parameters {
-                //     *self
-                //         .parameters
-                //         .entry(parameter)
-                //         .or_insert(Lattice::BOTTOM) |= argument;
-                // }
+                for (&parameter, argument) in arguments {
+                    let argument = self.interpret_expression(argument);
+                    *self
+                        .parameters
+                        .entry(parameter)
+                        .or_insert(Lattice::BOTTOM) |= argument;
+                }
                 Lattice::BOTTOM
             }
             B::SetVariable { variable, to } => {
