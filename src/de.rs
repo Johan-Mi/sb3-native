@@ -50,14 +50,14 @@ impl fmt::Debug for RawValue {
 #[derive(Debug, Deserialize)]
 struct Variable(String, RawValue);
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct VariableId(String);
 
 #[derive(Debug, Deserialize)]
 struct List(String, Vec<RawValue>);
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct ListId(String);
 
@@ -75,11 +75,11 @@ pub struct Block {
 #[serde(transparent)]
 pub struct BlockId(String);
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(transparent)]
 pub struct BroadcastId(String);
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Input {
     Block(BlockId),
     // Also includes positive numbers, positive integers, integers and angles.

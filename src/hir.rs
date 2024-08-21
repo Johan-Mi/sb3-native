@@ -392,7 +392,21 @@ fn lower_block(
         ),
         "pen_clear" => Block::PenClear,
         "pen_stamp" => Block::PenStamp,
-        "procedures_call" => Block::CallProcedure,
+        "procedures_call" => {
+            Block::CallProcedure {
+                // TODO
+                arguments: block
+                    .inputs
+                    .iter()
+                    .map(|(id, argument)| {
+                        Ok((
+                            cx.parameter_id(id.clone()),
+                            cx.just_input(argument.clone(), argument)?,
+                        ))
+                    })
+                    .collect::<Result<_>>()?,
+            }
+        }
         "procedures_definition" => {
             hats.insert(
                 id,
@@ -472,7 +486,9 @@ enum Block {
         body: Sequence,
     },
 
-    CallProcedure,
+    CallProcedure {
+        arguments: BTreeMap<ParameterId, Expression>,
+    },
     Parameter(ParameterId),
 
     StopAll,
@@ -616,7 +632,7 @@ impl fmt::Debug for ListId {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct ParameterId(NonZeroU32);
 
 impl fmt::Debug for ParameterId {
@@ -708,6 +724,14 @@ impl LoweringContext {
             .with_context(|| format!("missing block input: {name:?}"))?
             as _;
         let input = block.inputs.remove(name).unwrap();
+        self.just_input(input, ptr)
+    }
+
+    fn just_input(
+        &mut self,
+        input: de::Input,
+        ptr: *const de::Input,
+    ) -> Result<Expression> {
         Ok(match input {
             de::Input::Block(block) => Expression::Block(self.block_id(block)),
             de::Input::Number(n) => Expression::Immediate(Immediate::Number(n)),
