@@ -203,10 +203,7 @@ impl Interpreter<'_> {
         self.blocks.insert(id, lattice);
     }
 
-    fn interpret_expression(
-        &mut self,
-        expression: &hir::Expression,
-    ) -> Lattice {
+    fn interpret_expression(&self, expression: &hir::Expression) -> Lattice {
         match expression {
             hir::Expression::Block(block) => self.blocks[block],
             hir::Expression::Immediate(hir::Immediate::String(_)) => {

@@ -401,7 +401,7 @@ fn lower_block(
                     .map(|(id, argument)| {
                         Ok((
                             cx.parameter_id(id.clone()),
-                            cx.just_input(argument.clone(), argument)?,
+                            cx.just_input(argument.clone(), argument),
                         ))
                     })
                     .collect::<Result<_>>()?,
@@ -724,15 +724,15 @@ impl LoweringContext {
             .with_context(|| format!("missing block input: {name:?}"))?
             as _;
         let input = block.inputs.remove(name).unwrap();
-        self.just_input(input, ptr)
+        Ok(self.just_input(input, ptr))
     }
 
     fn just_input(
         &mut self,
         input: de::Input,
         ptr: *const de::Input,
-    ) -> Result<Expression> {
-        Ok(match input {
+    ) -> Expression {
+        match input {
             de::Input::Block(block) => Expression::Block(self.block_id(block)),
             de::Input::Number(n) => Expression::Immediate(Immediate::Number(n)),
             de::Input::String(s) => Expression::Immediate(Immediate::String(s)),
@@ -750,7 +750,7 @@ impl LoweringContext {
                 self.blocks.insert(list_block_id, Block::List(list_id));
                 Expression::Block(list_block_id)
             }
-        })
+        }
     }
 
     fn substack(
