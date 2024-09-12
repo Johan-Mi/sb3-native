@@ -1,4 +1,5 @@
 #![warn(clippy::nursery, clippy::pedantic)]
+#![deny(clippy::allow_attributes_without_reason)]
 #![forbid(unsafe_code)]
 
 mod aint;
