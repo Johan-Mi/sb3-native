@@ -1,4 +1,5 @@
 #![warn(clippy::nursery, clippy::pedantic)]
+#![forbid(unsafe_code)]
 
 mod aint;
 mod de;
