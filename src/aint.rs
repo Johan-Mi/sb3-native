@@ -98,7 +98,7 @@ impl Interpreter<'_> {
     fn interpret_sequence(&mut self, body: &hir::Sequence) {
         for &block in &body.blocks {
             let thing = self.interpret_block(block);
-            self.blocks.insert(block, thing);
+            let _: Option<Thing> = self.blocks.insert(block, thing);
         }
     }
 

@@ -42,7 +42,9 @@ impl Project {
                     })
                     .collect::<Vec<_>>();
                 if let Some(next) = &block.next {
-                    nexts.insert(id, cx.block_id(next.clone()));
+                    assert!(nexts
+                        .insert(id, cx.block_id(next.clone()))
+                        .is_none());
                 }
                 (!p.is_empty()).then_some((id, p))
             })
@@ -70,7 +72,7 @@ impl Project {
                         &mut my_hats,
                         &mut cx,
                     )? {
-                        cx.blocks.insert(id, block);
+                        assert!(cx.blocks.insert(id, block).is_none());
                     }
                 }
 
@@ -271,25 +273,33 @@ fn lower_block(
                 .broadcast_option
                 .context("missing field: \"BROADCAST_OPTION\"")?
                 .0;
-            hats.insert(
-                id,
-                Hat {
-                    kind: HatKind::WhenReceived { broadcast_name },
-                    body: Sequence::from(block.next.map(|it| cx.block_id(it))),
-                },
-            );
-            my_hats.insert(id);
+            assert!(hats
+                .insert(
+                    id,
+                    Hat {
+                        kind: HatKind::WhenReceived { broadcast_name },
+                        body: Sequence::from(
+                            block.next.map(|it| cx.block_id(it))
+                        ),
+                    },
+                )
+                .is_none());
+            assert!(my_hats.insert(id));
             return Ok(None);
         }
         "event_whenflagclicked" => {
-            hats.insert(
-                id,
-                Hat {
-                    kind: HatKind::WhenFlagClicked,
-                    body: Sequence::from(block.next.map(|it| cx.block_id(it))),
-                },
-            );
-            my_hats.insert(id);
+            assert!(hats
+                .insert(
+                    id,
+                    Hat {
+                        kind: HatKind::WhenFlagClicked,
+                        body: Sequence::from(
+                            block.next.map(|it| cx.block_id(it))
+                        ),
+                    },
+                )
+                .is_none());
+            assert!(my_hats.insert(id));
             return Ok(None);
         }
         "looks_hide" => Block::Hide,
@@ -408,14 +418,18 @@ fn lower_block(
             }
         }
         "procedures_definition" => {
-            hats.insert(
-                id,
-                Hat {
-                    kind: HatKind::Procedure,
-                    body: Sequence::from(block.next.map(|it| cx.block_id(it))),
-                },
-            );
-            my_hats.insert(id);
+            assert!(hats
+                .insert(
+                    id,
+                    Hat {
+                        kind: HatKind::Procedure,
+                        body: Sequence::from(
+                            block.next.map(|it| cx.block_id(it))
+                        ),
+                    },
+                )
+                .is_none());
+            assert!(my_hats.insert(id));
             return Ok(None);
         }
         "procedures_prototype" => return Ok(None),
@@ -740,14 +754,19 @@ impl LoweringContext {
             de::Input::Variable(id) => {
                 let variable_block_id = self.pseudos[&ptr];
                 let variable_id = self.variable_id(id);
-                self.blocks
-                    .insert(variable_block_id, Block::Variable(variable_id));
+                assert!(self
+                    .blocks
+                    .insert(variable_block_id, Block::Variable(variable_id))
+                    .is_none());
                 Expression::Block(variable_block_id)
             }
             de::Input::List(id) => {
                 let list_block_id = self.pseudos[&ptr];
                 let list_id = self.list_id(id);
-                self.blocks.insert(list_block_id, Block::List(list_id));
+                assert!(self
+                    .blocks
+                    .insert(list_block_id, Block::List(list_id))
+                    .is_none());
                 Expression::Block(list_block_id)
             }
         }

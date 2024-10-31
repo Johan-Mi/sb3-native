@@ -1,5 +1,9 @@
 #![warn(clippy::nursery, clippy::pedantic)]
-#![deny(clippy::allow_attributes_without_reason)]
+#![deny(
+    clippy::allow_attributes_without_reason,
+    clippy::let_underscore_untyped,
+    unused_results
+)]
 #![forbid(unsafe_code)]
 
 mod aint;
