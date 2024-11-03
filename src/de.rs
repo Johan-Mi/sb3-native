@@ -105,10 +105,7 @@ struct InputVisitor;
 impl<'de> Visitor<'de> for InputVisitor {
     type Value = Input;
 
-    fn expecting(
-        &self,
-        formatter: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("an input")
     }
 
@@ -119,9 +116,7 @@ impl<'de> Visitor<'de> for InputVisitor {
         _ = seq.next_element::<u8>();
         let input = seq
             .next_element::<InnerInput>()?
-            .ok_or_else(|| {
-                serde::de::Error::custom("unexpected end of block input")
-            })?
+            .ok_or_else(|| serde::de::Error::custom("unexpected end of block input"))?
             .0;
         _ = seq.next_element::<Input>();
         Ok(input)
@@ -144,10 +139,7 @@ struct InnerInputVisitor;
 impl<'de> Visitor<'de> for InnerInputVisitor {
     type Value = InnerInput;
 
-    fn expecting(
-        &self,
-        formatter: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("an input")
     }
 
@@ -174,56 +166,40 @@ impl<'de> Visitor<'de> for InnerInputVisitor {
                 let n = seq
                     .next_element::<NumberOrNumericString>()?
                     .ok_or_else(|| {
-                        serde::de::Error::custom(
-                            "unexpected end of numeric block input",
-                        )
+                        serde::de::Error::custom("unexpected end of numeric block input")
                     })?;
                 Ok(InnerInput(Input::Number(n.0)))
             }
             Some(9..=10) => {
                 let s = seq.next_element()?.ok_or_else(|| {
-                    serde::de::Error::custom(
-                        "unexpected end of string block input",
-                    )
+                    serde::de::Error::custom("unexpected end of string block input")
                 })?;
                 Ok(InnerInput(Input::String(s)))
             }
             Some(11) => {
                 let _name = seq.next_element::<String>()?.ok_or_else(|| {
-                    serde::de::Error::custom(
-                        "unexpected end of broadcast block input",
-                    )
+                    serde::de::Error::custom("unexpected end of broadcast block input")
                 })?;
                 let id = seq.next_element()?.ok_or_else(|| {
-                    serde::de::Error::custom(
-                        "unexpected end of broadcast block input",
-                    )
+                    serde::de::Error::custom("unexpected end of broadcast block input")
                 })?;
                 Ok(InnerInput(Input::Broadcast(id)))
             }
             Some(12) => {
                 let _name = seq.next_element::<String>()?.ok_or_else(|| {
-                    serde::de::Error::custom(
-                        "unexpected end of variable block input",
-                    )
+                    serde::de::Error::custom("unexpected end of variable block input")
                 })?;
                 let id = seq.next_element()?.ok_or_else(|| {
-                    serde::de::Error::custom(
-                        "unexpected end of variable block input",
-                    )
+                    serde::de::Error::custom("unexpected end of variable block input")
                 })?;
                 Ok(InnerInput(Input::Variable(id)))
             }
             Some(13) => {
                 let _name = seq.next_element::<String>()?.ok_or_else(|| {
-                    serde::de::Error::custom(
-                        "unexpected end of list block input",
-                    )
+                    serde::de::Error::custom("unexpected end of list block input")
                 })?;
                 let id = seq.next_element()?.ok_or_else(|| {
-                    serde::de::Error::custom(
-                        "unexpected end of list block input",
-                    )
+                    serde::de::Error::custom("unexpected end of list block input")
                 })?;
                 Ok(InnerInput(Input::List(id)))
             }
@@ -248,10 +224,7 @@ struct NumberOrNumericStringVisitor;
 impl<'de> Visitor<'de> for NumberOrNumericStringVisitor {
     type Value = NumberOrNumericString;
 
-    fn expecting(
-        &self,
-        formatter: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("a number or a numeric string")
     }
 

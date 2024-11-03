@@ -30,9 +30,7 @@ impl Project {
                     .inputs
                     .values()
                     .filter_map(|it| match it {
-                        de::Input::Block(input) => {
-                            Some(cx.block_id(input.clone()))
-                        }
+                        de::Input::Block(input) => Some(cx.block_id(input.clone())),
                         de::Input::Variable(_) | de::Input::List(_) => {
                             let id = cx.generator.new_block_id();
                             assert!(cx.pseudos.insert(it, id).is_none());
@@ -42,9 +40,7 @@ impl Project {
                     })
                     .collect::<Vec<_>>();
                 if let Some(next) = &block.next {
-                    assert!(nexts
-                        .insert(id, cx.block_id(next.clone()))
-                        .is_none());
+                    assert!(nexts.insert(id, cx.block_id(next.clone())).is_none());
                 }
                 (!p.is_empty()).then_some((id, p))
             })
@@ -65,13 +61,7 @@ impl Project {
 
                 for (id, block) in target.blocks {
                     let id = cx.block_id(id);
-                    if let Some(block) = lower_block(
-                        block,
-                        id,
-                        &mut hats,
-                        &mut my_hats,
-                        &mut cx,
-                    )? {
+                    if let Some(block) = lower_block(block, id, &mut hats, &mut my_hats, &mut cx)? {
                         assert!(cx.blocks.insert(id, block).is_none());
                     }
                 }
@@ -139,9 +129,9 @@ fn lower_block(
     cx: &mut LoweringContext,
 ) -> Result<Option<Block>, anyhow::Error> {
     Ok(Some(match &*block.opcode {
-        "argument_reporter_string_number" => Block::Parameter(cx.parameter_id(
-            block.fields.value.context("missing field: \"VALUE\"")?.0,
-        )),
+        "argument_reporter_string_number" => Block::Parameter(
+            cx.parameter_id(block.fields.value.context("missing field: \"VALUE\"")?.0),
+        ),
         "control_for_each" => {
             let times = cx.input(&mut block, "VALUE")?;
             let body = cx.substack(&mut block, "SUBSTACK")?;
@@ -203,9 +193,7 @@ fn lower_block(
         },
         "data_addtolist" => {
             let value = cx.input(&mut block, "ITEM")?;
-            let list = cx.list_id(
-                block.fields.list.context("missing field: \"LIST\"")?.1,
-            );
+            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
             Block::AddToList { list, value }
         }
         "data_changevariableby" => {
@@ -220,37 +208,27 @@ fn lower_block(
             Block::ChangeVariable { variable, by }
         }
         "data_deletealloflist" => {
-            let list = cx.list_id(
-                block.fields.list.context("missing field: \"LIST\"")?.1,
-            );
+            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
             Block::DeleteAllOfList(list)
         }
         "data_deleteoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
-            let list = cx.list_id(
-                block.fields.list.context("missing field: \"LIST\"")?.1,
-            );
+            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
             Block::DeleteItemOfList { list, index }
         }
         "data_itemoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
-            let list = cx.list_id(
-                block.fields.list.context("missing field: \"LIST\"")?.1,
-            );
+            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
             Block::ItemOfList { list, index }
         }
         "data_lengthoflist" => {
-            let list = cx.list_id(
-                block.fields.list.context("missing field: \"LIST\"")?.1,
-            );
+            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
             Block::LengthOfList(list)
         }
         "data_replaceitemoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
             let value = cx.input(&mut block, "ITEM")?;
-            let list = cx.list_id(
-                block.fields.list.context("missing field: \"LIST\"")?.1,
-            );
+            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
             Block::ReplaceItemOfList { list, index, value }
         }
         "data_setvariableto" => {
@@ -278,9 +256,7 @@ fn lower_block(
                     id,
                     Hat {
                         kind: HatKind::WhenReceived { broadcast_name },
-                        body: Sequence::from(
-                            block.next.map(|it| cx.block_id(it))
-                        ),
+                        body: Sequence::from(block.next.map(|it| cx.block_id(it))),
                     },
                 )
                 .is_none());
@@ -293,9 +269,7 @@ fn lower_block(
                     id,
                     Hat {
                         kind: HatKind::WhenFlagClicked,
-                        body: Sequence::from(
-                            block.next.map(|it| cx.block_id(it))
-                        ),
+                        body: Sequence::from(block.next.map(|it| cx.block_id(it))),
                     },
                 )
                 .is_none());
@@ -323,18 +297,14 @@ fn lower_block(
             to: cx.input(&mut block, "X")?,
         },
         "motion_xposition" => Block::XPosition,
-        "operator_add" => Block::Add(
-            cx.input(&mut block, "NUM1")?,
-            cx.input(&mut block, "NUM2")?,
-        ),
+        "operator_add" => Block::Add(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?),
         "operator_and" => Block::And(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
         ),
-        "operator_divide" => Block::Div(
-            cx.input(&mut block, "NUM1")?,
-            cx.input(&mut block, "NUM2")?,
-        ),
+        "operator_divide" => {
+            Block::Div(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?)
+        }
         "operator_equals" => Block::Eq(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
@@ -347,9 +317,7 @@ fn lower_block(
             cx.input(&mut block, "STRING1")?,
             cx.input(&mut block, "STRING2")?,
         ),
-        "operator_length" => {
-            Block::StringLength(cx.input(&mut block, "STRING")?)
-        }
+        "operator_length" => Block::StringLength(cx.input(&mut block, "STRING")?),
         "operator_letter_of" => Block::LetterOf {
             index: cx.input(&mut block, "LETTER")?,
             string: cx.input(&mut block, "STRING")?,
@@ -383,23 +351,18 @@ fn lower_block(
                 _ => bail!("invalid mathop: {operator:?}"),
             }
         }
-        "operator_mod" => Block::Mod(
-            cx.input(&mut block, "NUM1")?,
-            cx.input(&mut block, "NUM2")?,
-        ),
-        "operator_multiply" => Block::Mul(
-            cx.input(&mut block, "NUM1")?,
-            cx.input(&mut block, "NUM2")?,
-        ),
+        "operator_mod" => Block::Mod(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?),
+        "operator_multiply" => {
+            Block::Mul(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?)
+        }
         "operator_not" => Block::Not(cx.input(&mut block, "OPERAND")?),
         "operator_or" => Block::Or(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
         ),
-        "operator_subtract" => Block::Sub(
-            cx.input(&mut block, "NUM1")?,
-            cx.input(&mut block, "NUM2")?,
-        ),
+        "operator_subtract" => {
+            Block::Sub(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?)
+        }
         "pen_clear" => Block::PenClear,
         "pen_stamp" => Block::PenStamp,
         "procedures_call" => {
@@ -423,9 +386,7 @@ fn lower_block(
                     id,
                     Hat {
                         kind: HatKind::Procedure,
-                        body: Sequence::from(
-                            block.next.map(|it| cx.block_id(it))
-                        ),
+                        body: Sequence::from(block.next.map(|it| cx.block_id(it))),
                     },
                 )
                 .is_none());
@@ -727,25 +688,16 @@ impl LoweringContext {
             .or_insert_with(|| self.generator.new_parameter_id())
     }
 
-    fn input(
-        &mut self,
-        block: &mut de::Block,
-        name: &str,
-    ) -> Result<Expression> {
+    fn input(&mut self, block: &mut de::Block, name: &str) -> Result<Expression> {
         let ptr = block
             .inputs
             .get(name)
-            .with_context(|| format!("missing block input: {name:?}"))?
-            as _;
+            .with_context(|| format!("missing block input: {name:?}"))? as _;
         let input = block.inputs.remove(name).unwrap();
         Ok(self.just_input(input, ptr))
     }
 
-    fn just_input(
-        &mut self,
-        input: de::Input,
-        ptr: *const de::Input,
-    ) -> Expression {
+    fn just_input(&mut self, input: de::Input, ptr: *const de::Input) -> Expression {
         match input {
             de::Input::Block(block) => Expression::Block(self.block_id(block)),
             de::Input::Number(n) => Expression::Immediate(Immediate::Number(n)),
@@ -772,11 +724,7 @@ impl LoweringContext {
         }
     }
 
-    fn substack(
-        &mut self,
-        block: &mut de::Block,
-        name: &str,
-    ) -> Result<Sequence> {
+    fn substack(&mut self, block: &mut de::Block, name: &str) -> Result<Sequence> {
         match block.inputs.remove(name) {
             None => bail!("missing substack: {name:?}"),
             Some(de::Input::Block(block)) => Ok(self.block_id(block).into()),

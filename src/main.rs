@@ -18,8 +18,7 @@ fn main() -> Result<()> {
     ensure!(args.len() <= 1, "too many command line arguments");
     let project_path = args.next().context("no project file path provided")?;
 
-    let project = de::Project::load(project_path.as_ref())
-        .context("failed to load project")?;
+    let project = de::Project::load(project_path.as_ref()).context("failed to load project")?;
     if env::var_os("DUMP_DE").is_some() {
         eprintln!("{project:#?}");
     }

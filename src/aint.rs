@@ -130,12 +130,10 @@ impl Interpreter<'_> {
                 *self
                     .variables
                     .entry(*variable)
-                    .or_insert_with(|| Lattice::BOTTOM.into()) |=
-                    Lattice::NUM.into();
+                    .or_insert_with(|| Lattice::BOTTOM.into()) |= Lattice::NUM.into();
                 Lattice::BOTTOM.into()
             }
-            B::AddToList { list, value }
-            | B::ReplaceItemOfList { list, value, .. } => {
+            B::AddToList { list, value } | B::ReplaceItemOfList { list, value, .. } => {
                 let value = self.interpret_expression(value);
                 *self
                     .lists
@@ -174,9 +172,7 @@ impl Interpreter<'_> {
             B::Parameter(parameter) => Thing::from(*parameter),
             B::Variable(variable) => Thing::from(*variable),
             B::ItemOfList { list, .. } => Thing::from(*list),
-            B::List(_) | B::Join(..) | B::LetterOf { .. } | B::Answer => {
-                Lattice::STRING.into()
-            }
+            B::List(_) | B::Join(..) | B::LetterOf { .. } | B::Answer => Lattice::STRING.into(),
             B::LengthOfList(_)
             | B::Add(..)
             | B::Sub(..)
@@ -199,27 +195,18 @@ impl Interpreter<'_> {
             | B::Exp10(_)
             | B::XPosition
             | B::StringLength(_) => Lattice::NUM.into(),
-            B::Lt(..)
-            | B::Eq(..)
-            | B::Gt(..)
-            | B::And(..)
-            | B::Or(..)
-            | B::Not(_) => Lattice::BOOL.into(),
+            B::Lt(..) | B::Eq(..) | B::Gt(..) | B::And(..) | B::Or(..) | B::Not(_) => {
+                Lattice::BOOL.into()
+            }
         }
     }
 
     fn interpret_expression(&self, expression: &hir::Expression) -> Thing {
         match expression {
             hir::Expression::Block(block) => self.blocks[block].clone(),
-            hir::Expression::Immediate(hir::Immediate::String(_)) => {
-                Lattice::STRING.into()
-            }
-            hir::Expression::Immediate(hir::Immediate::Number(_)) => {
-                Lattice::NUM.into()
-            }
-            hir::Expression::Immediate(hir::Immediate::Bool(_)) => {
-                Lattice::BOOL.into()
-            }
+            hir::Expression::Immediate(hir::Immediate::String(_)) => Lattice::STRING.into(),
+            hir::Expression::Immediate(hir::Immediate::Number(_)) => Lattice::NUM.into(),
+            hir::Expression::Immediate(hir::Immediate::Bool(_)) => Lattice::BOOL.into(),
         }
     }
 
