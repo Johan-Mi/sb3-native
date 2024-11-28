@@ -221,7 +221,7 @@ impl<'de> Deserialize<'de> for NumberOrNumericString {
 
 struct NumberOrNumericStringVisitor;
 
-impl<'de> Visitor<'de> for NumberOrNumericStringVisitor {
+impl Visitor<'_> for NumberOrNumericStringVisitor {
     type Value = NumberOrNumericString;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
