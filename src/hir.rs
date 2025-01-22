@@ -372,12 +372,12 @@ fn lower_block(
                     .inputs
                     .iter()
                     .map(|(id, argument)| {
-                        Ok((
+                        (
                             cx.parameter_id(id.clone()),
                             cx.just_input(argument.clone(), argument),
-                        ))
+                        )
                     })
-                    .collect::<Result<_>>()?,
+                    .collect(),
             }
         }
         "procedures_definition" => {
