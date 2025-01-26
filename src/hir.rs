@@ -1,68 +1,71 @@
 use crate::de;
 use anyhow::{bail, Context, Result};
-use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
-    fmt,
-    num::NonZeroU32,
-};
+use slotmap::{SecondaryMap, SlotMap};
+use std::{collections::HashMap, fmt};
 
 pub use de::RawValue as Immediate;
 
 #[derive(Debug)]
 pub struct Project {
     targets: Vec<Target>,
-    pub hats: BTreeMap<BlockId, Hat>,
-    pub blocks: BTreeMap<BlockId, Block>,
+    pub hats: SlotMap<HatId, Hat>,
+    pub blocks: SlotMap<BlockId, Block>,
 }
 
 impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
-        let mut cx = LoweringContext::default();
+        let mut cx = LoweringContext::new(&de);
 
-        let mut nexts = BTreeMap::new();
+        let mut nexts = SecondaryMap::new();
         let predecessors = de
             .targets
             .iter()
             .flat_map(|it| &it.blocks)
             .filter_map(|(id, block)| {
-                let id = cx.block_id(id.clone());
+                let id = cx.block_ids[id];
                 let p = block
                     .inputs
                     .values()
                     .filter_map(|it| match it {
-                        de::Input::Block(input) => Some(cx.block_id(input.clone())),
-                        de::Input::Variable(_) | de::Input::List(_) => {
-                            let id = cx.generator.new_block_id();
-                            assert!(cx.pseudos.insert(it, id).is_none());
-                            Some(id)
+                        de::Input::Block(input) => Some(cx.block_ids[input]),
+                        de::Input::Variable(id) => {
+                            let variable_block_id =
+                                cx.blocks.insert(Block::Variable(cx.variable_ids[id]));
+                            assert!(cx.pseudos.insert(it, variable_block_id).is_none());
+                            Some(variable_block_id)
+                        }
+                        de::Input::List(id) => {
+                            let list_block_id = cx.blocks.insert(Block::List(cx.list_ids[id]));
+                            assert!(cx.pseudos.insert(it, list_block_id).is_none());
+                            Some(list_block_id)
                         }
                         _ => None,
                     })
                     .collect::<Vec<_>>();
                 if let Some(next) = &block.next {
-                    assert!(nexts.insert(id, cx.block_id(next.clone())).is_none());
+                    assert!(nexts.insert(id, cx.block_ids[next]).is_none());
                 }
                 (!p.is_empty()).then_some((id, p))
             })
-            .collect::<BTreeMap<_, _>>();
+            .collect::<SecondaryMap<_, _>>();
 
         if std::env::var_os("DUMP_HIR_CFG").is_some() {
             eprintln!("{predecessors:#?}");
             eprintln!("{nexts:#?}");
         }
 
-        let mut hats = BTreeMap::new();
+        let mut hats = SlotMap::with_key();
 
         let targets = de
             .targets
             .into_iter()
             .map(|target| {
-                let mut my_hats = BTreeSet::new();
+                let mut my_hats = SecondaryMap::new();
 
                 for (id, block) in target.blocks {
-                    let id = cx.block_id(id);
-                    if let Some(block) = lower_block(block, id, &mut hats, &mut my_hats, &mut cx)? {
-                        assert!(cx.blocks.insert(id, block).is_none());
+                    let id = cx.block_ids[&id];
+                    if let Some(block) = lower_block(block, &mut hats, &mut my_hats, &cx)? {
+                        cx.blocks[id] = block;
                     }
                 }
 
@@ -98,24 +101,64 @@ impl Project {
     }
 }
 
+impl LoweringContext {
+    fn new(de: &de::Project) -> Self {
+        let mut blocks = SlotMap::with_key();
+        let mut variables = SlotMap::with_key();
+        let mut lists = SlotMap::with_key();
+        let mut parameters = SlotMap::with_key();
+
+        Self {
+            block_ids: de
+                .targets
+                .iter()
+                .flat_map(|it| it.blocks.keys())
+                .map(|it| (it.clone(), blocks.insert(Block::StopAll))) // Dummy block
+                .collect(),
+            blocks,
+            variable_ids: de
+                .targets
+                .iter()
+                .flat_map(|it| it.variables.keys())
+                .map(|it| (it.clone(), variables.insert(())))
+                .collect(),
+            list_ids: de
+                .targets
+                .iter()
+                .flat_map(|it| it.lists.keys())
+                .map(|it| (it.clone(), lists.insert(())))
+                .collect(),
+            parameter_ids: de
+                .targets
+                .iter()
+                .flat_map(|it| it.blocks.values())
+                .filter(|it| it.opcode == "procedures_prototype")
+                .flat_map(|it| it.inputs.keys())
+                .map(|it| (it.clone(), parameters.insert(())))
+                .collect(),
+            pseudos: HashMap::new(),
+        }
+    }
+}
+
 fn fill_sequence(
     sequence: &mut Sequence,
-    predecessors: &BTreeMap<BlockId, Vec<BlockId>>,
-    nexts: &BTreeMap<BlockId, BlockId>,
+    predecessors: &SecondaryMap<BlockId, Vec<BlockId>>,
+    nexts: &SecondaryMap<BlockId, BlockId>,
 ) {
     let mut next = sequence.blocks.pop();
     while let Some(block) = next {
         append_predecessors(sequence, block, predecessors);
-        next = nexts.get(&block).copied();
+        next = nexts.get(block).copied();
     }
 }
 
 fn append_predecessors(
     sequence: &mut Sequence,
     block: BlockId,
-    predecessors: &BTreeMap<BlockId, Vec<BlockId>>,
+    predecessors: &SecondaryMap<BlockId, Vec<BlockId>>,
 ) {
-    for &predecessor in predecessors.get(&block).into_iter().flatten() {
+    for &predecessor in predecessors.get(block).into_iter().flatten() {
         append_predecessors(sequence, predecessor, predecessors);
     }
     sequence.blocks.push(block);
@@ -123,27 +166,22 @@ fn append_predecessors(
 
 fn lower_block(
     mut block: de::Block,
-    id: BlockId,
-    hats: &mut BTreeMap<BlockId, Hat>,
-    my_hats: &mut BTreeSet<BlockId>,
-    cx: &mut LoweringContext,
+    hats: &mut SlotMap<HatId, Hat>,
+    my_hats: &mut SecondaryMap<HatId, ()>,
+    cx: &LoweringContext,
 ) -> Result<Option<Block>, anyhow::Error> {
     Ok(Some(match &*block.opcode {
-        "argument_reporter_string_number" => Block::Parameter(
-            cx.parameter_id(block.fields.value.context("missing field: \"VALUE\"")?.0),
-        ),
+        "argument_reporter_string_number" => todo!("look up parameters by user-visible name"),
         "control_for_each" => {
             let times = cx.input(&mut block, "VALUE")?;
             let body = cx.substack(&mut block, "SUBSTACK")?;
             Block::For {
                 variable: Some(
-                    cx.variable_id(
-                        block
-                            .fields
-                            .variable
-                            .context("missing field: \"VARIABLE\"")?
-                            .1,
-                    ),
+                    cx.variable_ids[&block
+                        .fields
+                        .variable
+                        .context("missing field: \"VARIABLE\"")?
+                        .1],
                 ),
                 times,
                 body,
@@ -193,53 +231,49 @@ fn lower_block(
         },
         "data_addtolist" => {
             let value = cx.input(&mut block, "ITEM")?;
-            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
+            let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
             Block::AddToList { list, value }
         }
         "data_changevariableby" => {
             let by = cx.input(&mut block, "VALUE")?;
-            let variable = cx.variable_id(
-                block
-                    .fields
-                    .variable
-                    .context("missing field: \"VARIABLE\"")?
-                    .1,
-            );
+            let variable = cx.variable_ids[&block
+                .fields
+                .variable
+                .context("missing field: \"VARIABLE\"")?
+                .1];
             Block::ChangeVariable { variable, by }
         }
         "data_deletealloflist" => {
-            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
+            let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
             Block::DeleteAllOfList(list)
         }
         "data_deleteoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
-            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
+            let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
             Block::DeleteItemOfList { list, index }
         }
         "data_itemoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
-            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
+            let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
             Block::ItemOfList { list, index }
         }
         "data_lengthoflist" => {
-            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
+            let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
             Block::LengthOfList(list)
         }
         "data_replaceitemoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
             let value = cx.input(&mut block, "ITEM")?;
-            let list = cx.list_id(block.fields.list.context("missing field: \"LIST\"")?.1);
+            let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
             Block::ReplaceItemOfList { list, index, value }
         }
         "data_setvariableto" => {
             let to = cx.input(&mut block, "VALUE")?;
-            let variable = cx.variable_id(
-                block
-                    .fields
-                    .variable
-                    .context("missing field: \"VARIABLE\"")?
-                    .1,
-            );
+            let variable = cx.variable_ids[&block
+                .fields
+                .variable
+                .context("missing field: \"VARIABLE\"")?
+                .1];
             Block::SetVariable { variable, to }
         }
         "event_broadcastandwait" => {
@@ -251,29 +285,19 @@ fn lower_block(
                 .broadcast_option
                 .context("missing field: \"BROADCAST_OPTION\"")?
                 .0;
-            assert!(hats
-                .insert(
-                    id,
-                    Hat {
-                        kind: HatKind::WhenReceived { broadcast_name },
-                        body: Sequence::from(block.next.map(|it| cx.block_id(it))),
-                    },
-                )
-                .is_none());
-            assert!(my_hats.insert(id));
+            let hat = hats.insert(Hat {
+                kind: HatKind::WhenReceived { broadcast_name },
+                body: Sequence::from(block.next.map(|it| cx.block_ids[&it])),
+            });
+            assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
         }
         "event_whenflagclicked" => {
-            assert!(hats
-                .insert(
-                    id,
-                    Hat {
-                        kind: HatKind::WhenFlagClicked,
-                        body: Sequence::from(block.next.map(|it| cx.block_id(it))),
-                    },
-                )
-                .is_none());
-            assert!(my_hats.insert(id));
+            let hat = hats.insert(Hat {
+                kind: HatKind::WhenFlagClicked,
+                body: Sequence::from(block.next.map(|it| cx.block_ids[&it])),
+            });
+            assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
         }
         "looks_hide" => Block::Hide,
@@ -371,23 +395,18 @@ fn lower_block(
                 .iter()
                 .map(|(id, argument)| {
                     (
-                        cx.parameter_id(id.clone()),
+                        cx.parameter_ids[id],
                         cx.just_input(argument.clone(), argument),
                     )
                 })
                 .collect(),
         },
         "procedures_definition" => {
-            assert!(hats
-                .insert(
-                    id,
-                    Hat {
-                        kind: HatKind::Procedure,
-                        body: Sequence::from(block.next.map(|it| cx.block_id(it))),
-                    },
-                )
-                .is_none());
-            assert!(my_hats.insert(id));
+            let hat = hats.insert(Hat {
+                kind: HatKind::Procedure,
+                body: Sequence::from(block.next.map(|it| cx.block_ids[&it])),
+            });
+            assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
         }
         "procedures_prototype" => return Ok(None),
@@ -399,7 +418,7 @@ fn lower_block(
 
 #[derive(Debug)]
 struct Target {
-    hats: BTreeSet<BlockId>,
+    hats: SecondaryMap<HatId, ()>,
 }
 
 #[derive(Debug)]
@@ -459,7 +478,7 @@ pub enum Block {
     },
 
     CallProcedure {
-        arguments: BTreeMap<ParameterId, Expression>,
+        arguments: SecondaryMap<ParameterId, Expression>,
     },
     Parameter(ParameterId),
 
@@ -577,78 +596,20 @@ impl fmt::Debug for Expression {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BlockId(NonZeroU32);
+slotmap::new_key_type! {
+    pub struct HatId;
 
-impl fmt::Debug for BlockId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "b{}", self.0)
-    }
+    pub struct BlockId;
+
+    pub struct VariableId;
+
+    pub struct ListId;
+
+    pub struct ParameterId;
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct VariableId(NonZeroU32);
-
-impl fmt::Debug for VariableId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ListId(NonZeroU32);
-
-impl fmt::Debug for ListId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "l{}", self.0)
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ParameterId(NonZeroU32);
-
-impl fmt::Debug for ParameterId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "p{}", self.0)
-    }
-}
-
-struct Generator(NonZeroU32);
-
-impl Default for Generator {
-    fn default() -> Self {
-        Self(NonZeroU32::MIN)
-    }
-}
-
-impl Generator {
-    fn new_raw(&mut self) -> NonZeroU32 {
-        let n = self.0;
-        self.0 = self.0.checked_add(1).unwrap();
-        n
-    }
-
-    fn new_block_id(&mut self) -> BlockId {
-        BlockId(self.new_raw())
-    }
-
-    fn new_variable_id(&mut self) -> VariableId {
-        VariableId(self.new_raw())
-    }
-
-    fn new_list_id(&mut self) -> ListId {
-        ListId(self.new_raw())
-    }
-
-    fn new_parameter_id(&mut self) -> ParameterId {
-        ParameterId(self.new_raw())
-    }
-}
-
-#[derive(Default)]
 struct LoweringContext {
-    generator: Generator,
-    blocks: BTreeMap<BlockId, Block>,
+    blocks: SlotMap<BlockId, Block>,
     block_ids: HashMap<de::BlockId, BlockId>,
     variable_ids: HashMap<de::VariableId, VariableId>,
     list_ids: HashMap<de::ListId, ListId>,
@@ -657,35 +618,7 @@ struct LoweringContext {
 }
 
 impl LoweringContext {
-    fn block_id(&mut self, id: de::BlockId) -> BlockId {
-        *self
-            .block_ids
-            .entry(id)
-            .or_insert_with(|| self.generator.new_block_id())
-    }
-
-    fn variable_id(&mut self, id: de::VariableId) -> VariableId {
-        *self
-            .variable_ids
-            .entry(id)
-            .or_insert_with(|| self.generator.new_variable_id())
-    }
-
-    fn list_id(&mut self, id: de::ListId) -> ListId {
-        *self
-            .list_ids
-            .entry(id)
-            .or_insert_with(|| self.generator.new_list_id())
-    }
-
-    fn parameter_id(&mut self, id: String) -> ParameterId {
-        *self
-            .parameter_ids
-            .entry(id)
-            .or_insert_with(|| self.generator.new_parameter_id())
-    }
-
-    fn input(&mut self, block: &mut de::Block, name: &str) -> Result<Expression> {
+    fn input(&self, block: &mut de::Block, name: &str) -> Result<Expression> {
         let ptr = block
             .inputs
             .get(name)
@@ -694,37 +627,20 @@ impl LoweringContext {
         Ok(self.just_input(input, ptr))
     }
 
-    fn just_input(&mut self, input: de::Input, ptr: *const de::Input) -> Expression {
+    fn just_input(&self, input: de::Input, ptr: *const de::Input) -> Expression {
         match input {
-            de::Input::Block(block) => Expression::Block(self.block_id(block)),
+            de::Input::Block(block) => Expression::Block(self.block_ids[&block]),
             de::Input::Number(n) => Expression::Immediate(Immediate::Number(n)),
             de::Input::String(s) => Expression::Immediate(Immediate::String(s)),
             de::Input::Broadcast(_) => todo!(),
-            de::Input::Variable(id) => {
-                let variable_block_id = self.pseudos[&ptr];
-                let variable_id = self.variable_id(id);
-                assert!(self
-                    .blocks
-                    .insert(variable_block_id, Block::Variable(variable_id))
-                    .is_none());
-                Expression::Block(variable_block_id)
-            }
-            de::Input::List(id) => {
-                let list_block_id = self.pseudos[&ptr];
-                let list_id = self.list_id(id);
-                assert!(self
-                    .blocks
-                    .insert(list_block_id, Block::List(list_id))
-                    .is_none());
-                Expression::Block(list_block_id)
-            }
+            de::Input::Variable(_) | de::Input::List(_) => Expression::Block(self.pseudos[&ptr]),
         }
     }
 
-    fn substack(&mut self, block: &mut de::Block, name: &str) -> Result<Sequence> {
+    fn substack(&self, block: &mut de::Block, name: &str) -> Result<Sequence> {
         match block.inputs.remove(name) {
             None => bail!("missing substack: {name:?}"),
-            Some(de::Input::Block(block)) => Ok(self.block_id(block).into()),
+            Some(de::Input::Block(block)) => Ok(self.block_ids[&block].into()),
             Some(_) => bail!("substack {name:?} must be a block ID"),
         }
     }

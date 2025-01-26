@@ -3,17 +3,15 @@
 #![deny(clippy::wildcard_enum_match_arm)]
 
 use crate::hir;
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    fmt, ops,
-};
+use slotmap::SecondaryMap;
+use std::{fmt, ops};
 
 #[derive(Debug)]
 pub struct ComputedTypes {
-    blocks: BTreeMap<hir::BlockId, Lattice>,
-    variables: BTreeMap<hir::VariableId, Lattice>,
-    lists: BTreeMap<hir::ListId, Lattice>,
-    parameters: BTreeMap<hir::ParameterId, Lattice>,
+    blocks: SecondaryMap<hir::BlockId, Lattice>,
+    variables: SecondaryMap<hir::VariableId, Lattice>,
+    lists: SecondaryMap<hir::ListId, Lattice>,
+    parameters: SecondaryMap<hir::ParameterId, Lattice>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -74,10 +72,10 @@ impl ops::BitOr for Lattice {
 
 pub fn interpret(project: &hir::Project) -> ComputedTypes {
     let mut interpreter = Interpreter {
-        blocks: BTreeMap::new(),
-        variables: BTreeMap::new(),
-        lists: BTreeMap::new(),
-        parameters: BTreeMap::new(),
+        blocks: SecondaryMap::new(),
+        variables: SecondaryMap::new(),
+        lists: SecondaryMap::new(),
+        parameters: SecondaryMap::new(),
         project,
     };
     for hat in project.hats.values() {
@@ -87,10 +85,10 @@ pub fn interpret(project: &hir::Project) -> ComputedTypes {
 }
 
 struct Interpreter<'a> {
-    blocks: BTreeMap<hir::BlockId, Thing>,
-    variables: BTreeMap<hir::VariableId, Thing>,
-    lists: BTreeMap<hir::ListId, Thing>,
-    parameters: BTreeMap<hir::ParameterId, Thing>,
+    blocks: SecondaryMap<hir::BlockId, Thing>,
+    variables: SecondaryMap<hir::VariableId, Thing>,
+    lists: SecondaryMap<hir::ListId, Thing>,
+    parameters: SecondaryMap<hir::ParameterId, Thing>,
     project: &'a hir::Project,
 }
 
@@ -104,16 +102,17 @@ impl Interpreter<'_> {
 
     fn interpret_block(&mut self, id: hir::BlockId) -> Thing {
         use hir::Block as B;
-        let Some(block) = self.project.blocks.get(&id) else {
+        let Some(block) = self.project.blocks.get(id) else {
             panic!("missing block: {id:?}");
         };
         match block {
             B::CallProcedure { arguments } => {
-                for (&parameter, argument) in arguments {
+                for (parameter, argument) in arguments {
                     let argument = self.interpret_expression(argument);
                     *self
                         .parameters
                         .entry(parameter)
+                        .unwrap()
                         .or_insert_with(|| Lattice::BOTTOM.into()) |= argument;
                 }
                 Lattice::BOTTOM.into()
@@ -123,6 +122,7 @@ impl Interpreter<'_> {
                 *self
                     .variables
                     .entry(*variable)
+                    .unwrap()
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= to;
                 Lattice::BOTTOM.into()
             }
@@ -130,6 +130,7 @@ impl Interpreter<'_> {
                 *self
                     .variables
                     .entry(*variable)
+                    .unwrap()
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= Lattice::NUM.into();
                 Lattice::BOTTOM.into()
             }
@@ -138,6 +139,7 @@ impl Interpreter<'_> {
                 *self
                     .lists
                     .entry(*list)
+                    .unwrap()
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= value;
                 Lattice::BOTTOM.into()
             }
@@ -202,7 +204,7 @@ impl Interpreter<'_> {
     }
 
     fn interpret_expression(&self, expression: &hir::Expression) -> Thing {
-        match expression {
+        match *expression {
             hir::Expression::Block(block) => self.blocks[block].clone(),
             hir::Expression::Immediate(hir::Immediate::String(_)) => Lattice::STRING.into(),
             hir::Expression::Immediate(hir::Immediate::Number(_)) => Lattice::NUM.into(),
@@ -215,22 +217,22 @@ impl Interpreter<'_> {
             blocks: self
                 .blocks
                 .iter()
-                .map(|(&block, thing)| (block, self.resolve_one(thing)))
+                .map(|(block, thing)| (block, self.resolve_one(thing)))
                 .collect(),
             variables: self
                 .variables
                 .iter()
-                .map(|(&variable, thing)| (variable, self.resolve_one(thing)))
+                .map(|(variable, thing)| (variable, self.resolve_one(thing)))
                 .collect(),
             lists: self
                 .lists
                 .iter()
-                .map(|(&list, thing)| (list, self.resolve_one(thing)))
+                .map(|(list, thing)| (list, self.resolve_one(thing)))
                 .collect(),
             parameters: self
                 .parameters
                 .iter()
-                .map(|(&parameter, thing)| (parameter, self.resolve_one(thing)))
+                .map(|(parameter, thing)| (parameter, self.resolve_one(thing)))
                 .collect(),
         }
     }
@@ -238,17 +240,17 @@ impl Interpreter<'_> {
     fn resolve_one(&self, thing: &Thing) -> Lattice {
         let variables = thing
             .variables
-            .iter()
+            .keys()
             .filter_map(|it| self.variables.get(it))
             .map(|it| self.resolve_one(it));
         let lists = thing
             .lists
-            .iter()
+            .keys()
             .filter_map(|it| self.lists.get(it))
             .map(|it| self.resolve_one(it));
         let parameters = thing
             .parameters
-            .iter()
+            .keys()
             .filter_map(|it| self.parameters.get(it))
             .map(|it| self.resolve_one(it));
         variables
@@ -261,18 +263,18 @@ impl Interpreter<'_> {
 #[derive(Clone)]
 struct Thing {
     lattice: Lattice,
-    variables: BTreeSet<hir::VariableId>,
-    lists: BTreeSet<hir::ListId>,
-    parameters: BTreeSet<hir::ParameterId>,
+    variables: SecondaryMap<hir::VariableId, ()>,
+    lists: SecondaryMap<hir::ListId, ()>,
+    parameters: SecondaryMap<hir::ParameterId, ()>,
 }
 
 impl From<Lattice> for Thing {
     fn from(value: Lattice) -> Self {
         Self {
             lattice: value,
-            variables: BTreeSet::new(),
-            lists: BTreeSet::new(),
-            parameters: BTreeSet::new(),
+            variables: SecondaryMap::new(),
+            lists: SecondaryMap::new(),
+            parameters: SecondaryMap::new(),
         }
     }
 }
@@ -281,9 +283,9 @@ impl From<hir::VariableId> for Thing {
     fn from(value: hir::VariableId) -> Self {
         Self {
             lattice: Lattice::BOTTOM,
-            variables: BTreeSet::from([value]),
-            lists: BTreeSet::new(),
-            parameters: BTreeSet::new(),
+            variables: SecondaryMap::from_iter([(value, ())]),
+            lists: SecondaryMap::new(),
+            parameters: SecondaryMap::new(),
         }
     }
 }
@@ -292,9 +294,9 @@ impl From<hir::ListId> for Thing {
     fn from(value: hir::ListId) -> Self {
         Self {
             lattice: Lattice::BOTTOM,
-            variables: BTreeSet::new(),
-            lists: BTreeSet::from([value]),
-            parameters: BTreeSet::new(),
+            variables: SecondaryMap::new(),
+            lists: SecondaryMap::from_iter([(value, ())]),
+            parameters: SecondaryMap::new(),
         }
     }
 }
@@ -303,9 +305,9 @@ impl From<hir::ParameterId> for Thing {
     fn from(value: hir::ParameterId) -> Self {
         Self {
             lattice: Lattice::BOTTOM,
-            variables: BTreeSet::new(),
-            lists: BTreeSet::new(),
-            parameters: BTreeSet::from([value]),
+            variables: SecondaryMap::new(),
+            lists: SecondaryMap::new(),
+            parameters: SecondaryMap::from_iter([(value, ())]),
         }
     }
 }

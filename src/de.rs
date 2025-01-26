@@ -24,8 +24,8 @@ pub struct Target {
     #[serde(default)]
     is_stage: bool,
     name: String,
-    variables: HashMap<VariableId, Variable>,
-    lists: HashMap<ListId, List>,
+    pub variables: HashMap<VariableId, Variable>,
+    pub lists: HashMap<ListId, List>,
     pub blocks: HashMap<BlockId, Block>,
 }
 
@@ -48,14 +48,14 @@ impl fmt::Debug for RawValue {
 }
 
 #[derive(Debug, Deserialize)]
-struct Variable(String, RawValue);
+pub struct Variable(String, RawValue);
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct VariableId(String);
 
 #[derive(Debug, Deserialize)]
-struct List(String, Vec<RawValue>);
+pub struct List(String, Vec<RawValue>);
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
