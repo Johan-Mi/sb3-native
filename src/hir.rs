@@ -365,21 +365,18 @@ fn lower_block(
         }
         "pen_clear" => Block::PenClear,
         "pen_stamp" => Block::PenStamp,
-        "procedures_call" => {
-            Block::CallProcedure {
-                // TODO
-                arguments: block
-                    .inputs
-                    .iter()
-                    .map(|(id, argument)| {
-                        (
-                            cx.parameter_id(id.clone()),
-                            cx.just_input(argument.clone(), argument),
-                        )
-                    })
-                    .collect(),
-            }
-        }
+        "procedures_call" => Block::CallProcedure {
+            arguments: block
+                .inputs
+                .iter()
+                .map(|(id, argument)| {
+                    (
+                        cx.parameter_id(id.clone()),
+                        cx.just_input(argument.clone(), argument),
+                    )
+                })
+                .collect(),
+        },
         "procedures_definition" => {
             assert!(hats
                 .insert(
