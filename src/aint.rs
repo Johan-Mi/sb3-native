@@ -108,7 +108,7 @@ impl Interpreter<'_> {
         match block {
             B::CallProcedure { arguments } => {
                 for (parameter, argument) in arguments {
-                    let argument = self.interpret_expression(argument);
+                    let argument = self.interpret_value(argument);
                     *self
                         .parameters
                         .entry(parameter)
@@ -118,7 +118,7 @@ impl Interpreter<'_> {
                 Lattice::BOTTOM.into()
             }
             B::SetVariable { variable, to } => {
-                let to = self.interpret_expression(to);
+                let to = self.interpret_value(to);
                 *self
                     .variables
                     .entry(*variable)
@@ -135,7 +135,7 @@ impl Interpreter<'_> {
                 Lattice::BOTTOM.into()
             }
             B::AddToList { list, value } | B::ReplaceItemOfList { list, value, .. } => {
-                let value = self.interpret_expression(value);
+                let value = self.interpret_value(value);
                 *self
                     .lists
                     .entry(*list)
@@ -203,12 +203,12 @@ impl Interpreter<'_> {
         }
     }
 
-    fn interpret_expression(&self, expression: &hir::Expression) -> Thing {
-        match *expression {
-            hir::Expression::Block(block) => self.blocks[block].clone(),
-            hir::Expression::Immediate(hir::Immediate::String(_)) => Lattice::STRING.into(),
-            hir::Expression::Immediate(hir::Immediate::Number(_)) => Lattice::NUM.into(),
-            hir::Expression::Immediate(hir::Immediate::Bool(_)) => Lattice::BOOL.into(),
+    fn interpret_value(&self, value: &hir::Value) -> Thing {
+        match *value {
+            hir::Value::Block(block) => self.blocks[block].clone(),
+            hir::Value::Immediate(hir::Immediate::String(_)) => Lattice::STRING.into(),
+            hir::Value::Immediate(hir::Immediate::Number(_)) => Lattice::NUM.into(),
+            hir::Value::Immediate(hir::Immediate::Bool(_)) => Lattice::BOOL.into(),
         }
     }
 

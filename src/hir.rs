@@ -456,29 +456,29 @@ impl From<Option<BlockId>> for Sequence {
 #[derive(Debug)]
 pub enum Block {
     If {
-        condition: Expression,
+        condition: Value,
         then: Sequence,
         else_: Sequence,
     },
     For {
         variable: Option<VariableId>,
-        times: Expression,
+        times: Value,
         body: Sequence,
     },
     Forever {
         body: Sequence,
     },
     While {
-        condition: Expression,
+        condition: Value,
         body: Sequence,
     },
     Until {
-        condition: Expression,
+        condition: Value,
         body: Sequence,
     },
 
     CallProcedure {
-        arguments: SecondaryMap<ParameterId, Expression>,
+        arguments: SecondaryMap<ParameterId, Value>,
     },
     Parameter(ParameterId),
 
@@ -486,108 +486,108 @@ pub enum Block {
     StopOtherScriptsInSprite,
     StopThisScript,
 
-    BroadcastAndWait(Expression),
+    BroadcastAndWait(Value),
 
     Variable(VariableId),
     SetVariable {
         variable: VariableId,
-        to: Expression,
+        to: Value,
     },
     ChangeVariable {
         variable: VariableId,
-        by: Expression,
+        by: Value,
     },
     List(ListId),
     AddToList {
         list: ListId,
-        value: Expression,
+        value: Value,
     },
     DeleteAllOfList(ListId),
     DeleteItemOfList {
         list: ListId,
-        index: Expression,
+        index: Value,
     },
     ItemOfList {
         list: ListId,
-        index: Expression,
+        index: Value,
     },
     LengthOfList(ListId),
     ReplaceItemOfList {
         list: ListId,
-        index: Expression,
-        value: Expression,
+        index: Value,
+        value: Value,
     },
 
-    Add(Expression, Expression),
-    Sub(Expression, Expression),
-    Mul(Expression, Expression),
-    Div(Expression, Expression),
-    Mod(Expression, Expression),
+    Add(Value, Value),
+    Sub(Value, Value),
+    Mul(Value, Value),
+    Div(Value, Value),
+    Mod(Value, Value),
 
-    Lt(Expression, Expression),
-    Eq(Expression, Expression),
-    Gt(Expression, Expression),
+    Lt(Value, Value),
+    Eq(Value, Value),
+    Gt(Value, Value),
 
-    And(Expression, Expression),
-    Or(Expression, Expression),
-    Not(Expression),
+    And(Value, Value),
+    Or(Value, Value),
+    Not(Value),
 
-    Join(Expression, Expression),
-    StringLength(Expression),
+    Join(Value, Value),
+    StringLength(Value),
     LetterOf {
-        index: Expression,
-        string: Expression,
+        index: Value,
+        string: Value,
     },
 
-    Abs(Expression),
-    Floor(Expression),
-    Ceiling(Expression),
-    Sqrt(Expression),
-    Sin(Expression),
-    Cos(Expression),
-    Tan(Expression),
-    Asin(Expression),
-    Acos(Expression),
-    Atan(Expression),
-    Ln(Expression),
-    Log(Expression),
-    Exp(Expression),
-    Exp10(Expression),
+    Abs(Value),
+    Floor(Value),
+    Ceiling(Value),
+    Sqrt(Value),
+    Sin(Value),
+    Cos(Value),
+    Tan(Value),
+    Asin(Value),
+    Acos(Value),
+    Atan(Value),
+    Ln(Value),
+    Log(Value),
+    Exp(Value),
+    Exp10(Value),
 
     Answer,
     XPosition,
 
-    Ask(Expression),
+    Ask(Value),
     ChangeX {
-        by: Expression,
+        by: Value,
     },
     ChangeY {
-        by: Expression,
+        by: Value,
     },
     GoToXY {
-        x: Expression,
-        y: Expression,
+        x: Value,
+        y: Value,
     },
     Hide,
     PenClear,
     PenStamp,
     SetCostume {
-        to: Expression,
+        to: Value,
     },
     SetSize {
-        to: Expression,
+        to: Value,
     },
     SetX {
-        to: Expression,
+        to: Value,
     },
 }
 
-pub enum Expression {
+pub enum Value {
     Block(BlockId),
     Immediate(Immediate),
 }
 
-impl fmt::Debug for Expression {
+impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Block(block) => block.fmt(f),
@@ -618,7 +618,7 @@ struct LoweringContext {
 }
 
 impl LoweringContext {
-    fn input(&self, block: &mut de::Block, name: &str) -> Result<Expression> {
+    fn input(&self, block: &mut de::Block, name: &str) -> Result<Value> {
         let ptr = block
             .inputs
             .get(name)
@@ -627,13 +627,13 @@ impl LoweringContext {
         Ok(self.just_input(input, ptr))
     }
 
-    fn just_input(&self, input: de::Input, ptr: *const de::Input) -> Expression {
+    fn just_input(&self, input: de::Input, ptr: *const de::Input) -> Value {
         match input {
-            de::Input::Block(block) => Expression::Block(self.block_ids[&block]),
-            de::Input::Number(n) => Expression::Immediate(Immediate::Number(n)),
-            de::Input::String(s) => Expression::Immediate(Immediate::String(s)),
+            de::Input::Block(block) => Value::Block(self.block_ids[&block]),
+            de::Input::Number(n) => Value::Immediate(Immediate::Number(n)),
+            de::Input::String(s) => Value::Immediate(Immediate::String(s)),
             de::Input::Broadcast(_) => todo!(),
-            de::Input::Variable(_) | de::Input::List(_) => Expression::Block(self.pseudos[&ptr]),
+            de::Input::Variable(_) | de::Input::List(_) => Value::Block(self.pseudos[&ptr]),
         }
     }
 
