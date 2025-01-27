@@ -9,7 +9,7 @@ pub use de::RawValue as Immediate;
 pub struct Project {
     targets: Vec<Target>,
     pub hats: SlotMap<HatId, Hat>,
-    pub blocks: SlotMap<BlockId, Block>,
+    pub ops: SlotMap<OpId, Op>,
 }
 
 impl Project {
@@ -22,28 +22,27 @@ impl Project {
             .iter()
             .flat_map(|it| &it.blocks)
             .filter_map(|(id, block)| {
-                let id = cx.block_ids[id];
+                let id = cx.op_ids[id];
                 let p = block
                     .inputs
                     .values()
                     .filter_map(|it| match it {
-                        de::Input::Block(input) => Some(cx.block_ids[input]),
+                        de::Input::Block(input) => Some(cx.op_ids[input]),
                         de::Input::Variable(id) => {
-                            let variable_block_id =
-                                cx.blocks.insert(Block::Variable(cx.variable_ids[id]));
-                            assert!(cx.pseudos.insert(it, variable_block_id).is_none());
-                            Some(variable_block_id)
+                            let variable_op_id = cx.ops.insert(Op::Variable(cx.variable_ids[id]));
+                            assert!(cx.pseudos.insert(it, variable_op_id).is_none());
+                            Some(variable_op_id)
                         }
                         de::Input::List(id) => {
-                            let list_block_id = cx.blocks.insert(Block::List(cx.list_ids[id]));
-                            assert!(cx.pseudos.insert(it, list_block_id).is_none());
-                            Some(list_block_id)
+                            let list_op_id = cx.ops.insert(Op::List(cx.list_ids[id]));
+                            assert!(cx.pseudos.insert(it, list_op_id).is_none());
+                            Some(list_op_id)
                         }
                         _ => None,
                     })
                     .collect::<Vec<_>>();
                 if let Some(next) = &block.next {
-                    assert!(nexts.insert(id, cx.block_ids[next]).is_none());
+                    assert!(nexts.insert(id, cx.op_ids[next]).is_none());
                 }
                 (!p.is_empty()).then_some((id, p))
             })
@@ -63,9 +62,9 @@ impl Project {
                 let mut my_hats = SecondaryMap::new();
 
                 for (id, block) in target.blocks {
-                    let id = cx.block_ids[&id];
-                    if let Some(block) = lower_block(block, &mut hats, &mut my_hats, &cx)? {
-                        cx.blocks[id] = block;
+                    let id = cx.op_ids[&id];
+                    if let Some(op) = lower_block(block, &mut hats, &mut my_hats, &cx)? {
+                        cx.ops[id] = op;
                     }
                 }
 
@@ -77,16 +76,16 @@ impl Project {
             fill_sequence(&mut hat.body, &predecessors, &nexts);
         }
 
-        for block in cx.blocks.values_mut() {
-            match block {
-                Block::If { then, else_, .. } => {
+        for op in cx.ops.values_mut() {
+            match op {
+                Op::If { then, else_, .. } => {
                     fill_sequence(then, &predecessors, &nexts);
                     fill_sequence(else_, &predecessors, &nexts);
                 }
-                Block::For { body, .. }
-                | Block::Forever { body }
-                | Block::While { body, .. }
-                | Block::Until { body, .. } => {
+                Op::For { body, .. }
+                | Op::Forever { body }
+                | Op::While { body, .. }
+                | Op::Until { body, .. } => {
                     fill_sequence(body, &predecessors, &nexts);
                 }
                 _ => {}
@@ -96,26 +95,26 @@ impl Project {
         Ok(Self {
             targets,
             hats,
-            blocks: cx.blocks,
+            ops: cx.ops,
         })
     }
 }
 
 impl LoweringContext {
     fn new(de: &de::Project) -> Self {
-        let mut blocks = SlotMap::with_key();
+        let mut ops = SlotMap::with_key();
         let mut variables = SlotMap::with_key();
         let mut lists = SlotMap::with_key();
         let mut parameters = SlotMap::with_key();
 
         Self {
-            block_ids: de
+            op_ids: de
                 .targets
                 .iter()
                 .flat_map(|it| it.blocks.keys())
-                .map(|it| (it.clone(), blocks.insert(Block::StopAll))) // Dummy block
+                .map(|it| (it.clone(), ops.insert(Op::StopAll))) // Dummy op
                 .collect(),
-            blocks,
+            ops,
             variable_ids: de
                 .targets
                 .iter()
@@ -143,25 +142,25 @@ impl LoweringContext {
 
 fn fill_sequence(
     sequence: &mut Sequence,
-    predecessors: &SecondaryMap<BlockId, Vec<BlockId>>,
-    nexts: &SecondaryMap<BlockId, BlockId>,
+    predecessors: &SecondaryMap<OpId, Vec<OpId>>,
+    nexts: &SecondaryMap<OpId, OpId>,
 ) {
-    let mut next = sequence.blocks.pop();
-    while let Some(block) = next {
-        append_predecessors(sequence, block, predecessors);
-        next = nexts.get(block).copied();
+    let mut next = sequence.ops.pop();
+    while let Some(op) = next {
+        append_predecessors(sequence, op, predecessors);
+        next = nexts.get(op).copied();
     }
 }
 
 fn append_predecessors(
     sequence: &mut Sequence,
-    block: BlockId,
-    predecessors: &SecondaryMap<BlockId, Vec<BlockId>>,
+    op: OpId,
+    predecessors: &SecondaryMap<OpId, Vec<OpId>>,
 ) {
-    for &predecessor in predecessors.get(block).into_iter().flatten() {
+    for &predecessor in predecessors.get(op).into_iter().flatten() {
         append_predecessors(sequence, predecessor, predecessors);
     }
-    sequence.blocks.push(block);
+    sequence.ops.push(op);
 }
 
 fn lower_block(
@@ -169,13 +168,13 @@ fn lower_block(
     hats: &mut SlotMap<HatId, Hat>,
     my_hats: &mut SecondaryMap<HatId, ()>,
     cx: &LoweringContext,
-) -> Result<Option<Block>, anyhow::Error> {
+) -> Result<Option<Op>, anyhow::Error> {
     Ok(Some(match &*block.opcode {
         "argument_reporter_string_number" => todo!("look up parameters by user-visible name"),
         "control_for_each" => {
             let times = cx.input(&mut block, "VALUE")?;
             let body = cx.substack(&mut block, "SUBSTACK")?;
-            Block::For {
+            Op::For {
                 variable: Some(
                     cx.variable_ids[&block
                         .fields
@@ -189,24 +188,24 @@ fn lower_block(
         }
         "control_forever" => {
             let body = cx.substack(&mut block, "SUBSTACK")?;
-            Block::Forever { body }
+            Op::Forever { body }
         }
-        "control_if" => Block::If {
+        "control_if" => Op::If {
             condition: cx.input(&mut block, "CONDITION")?,
             then: cx.substack(&mut block, "SUBSTACK")?,
             else_: Sequence::default(),
         },
-        "control_if_else" => Block::If {
+        "control_if_else" => Op::If {
             condition: cx.input(&mut block, "CONDITION")?,
             then: cx.substack(&mut block, "SUBSTACK")?,
             else_: cx.substack(&mut block, "SUBSTACK2")?,
         },
-        "control_repeat" => Block::For {
+        "control_repeat" => Op::For {
             variable: None,
             times: cx.input(&mut block, "TIMES")?,
             body: cx.substack(&mut block, "SUBSTACK")?,
         },
-        "control_repeat_until" => Block::Until {
+        "control_repeat_until" => Op::Until {
             condition: cx.input(&mut block, "CONDITION")?,
             body: cx.substack(&mut block, "SUBSTACK")?,
         },
@@ -217,22 +216,22 @@ fn lower_block(
                 .context("missing field: \"STOP_OPTION\"")?
                 .0;
             match stop_option {
-                "all" => Block::StopAll,
+                "all" => Op::StopAll,
                 "other scripts in sprite" | "other scripts in stage" => {
-                    Block::StopOtherScriptsInSprite
+                    Op::StopOtherScriptsInSprite
                 }
-                "this script" => Block::StopThisScript,
+                "this script" => Op::StopThisScript,
                 _ => bail!("invalid stop option: {stop_option:?}"),
             }
         }
-        "control_while" => Block::While {
+        "control_while" => Op::While {
             condition: cx.input(&mut block, "CONDITION")?,
             body: cx.substack(&mut block, "SUBSTACK")?,
         },
         "data_addtolist" => {
             let value = cx.input(&mut block, "ITEM")?;
             let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
-            Block::AddToList { list, value }
+            Op::AddToList { list, value }
         }
         "data_changevariableby" => {
             let by = cx.input(&mut block, "VALUE")?;
@@ -241,31 +240,31 @@ fn lower_block(
                 .variable
                 .context("missing field: \"VARIABLE\"")?
                 .1];
-            Block::ChangeVariable { variable, by }
+            Op::ChangeVariable { variable, by }
         }
         "data_deletealloflist" => {
             let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
-            Block::DeleteAllOfList(list)
+            Op::DeleteAllOfList(list)
         }
         "data_deleteoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
             let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
-            Block::DeleteItemOfList { list, index }
+            Op::DeleteItemOfList { list, index }
         }
         "data_itemoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
             let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
-            Block::ItemOfList { list, index }
+            Op::ItemOfList { list, index }
         }
         "data_lengthoflist" => {
             let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
-            Block::LengthOfList(list)
+            Op::LengthOfList(list)
         }
         "data_replaceitemoflist" => {
             let index = cx.input(&mut block, "INDEX")?;
             let value = cx.input(&mut block, "ITEM")?;
             let list = cx.list_ids[&block.fields.list.context("missing field: \"LIST\"")?.1];
-            Block::ReplaceItemOfList { list, index, value }
+            Op::ReplaceItemOfList { list, index, value }
         }
         "data_setvariableto" => {
             let to = cx.input(&mut block, "VALUE")?;
@@ -274,11 +273,9 @@ fn lower_block(
                 .variable
                 .context("missing field: \"VARIABLE\"")?
                 .1];
-            Block::SetVariable { variable, to }
+            Op::SetVariable { variable, to }
         }
-        "event_broadcastandwait" => {
-            Block::BroadcastAndWait(cx.input(&mut block, "BROADCAST_INPUT")?)
-        }
+        "event_broadcastandwait" => Op::BroadcastAndWait(cx.input(&mut block, "BROADCAST_INPUT")?),
         "event_whenbroadcastreceived" => {
             let broadcast_name = block
                 .fields
@@ -287,7 +284,7 @@ fn lower_block(
                 .0;
             let hat = hats.insert(Hat {
                 kind: HatKind::WhenReceived { broadcast_name },
-                body: Sequence::from(block.next.map(|it| cx.block_ids[&it])),
+                body: Sequence::from(block.next.map(|it| cx.op_ids[&it])),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
@@ -295,58 +292,56 @@ fn lower_block(
         "event_whenflagclicked" => {
             let hat = hats.insert(Hat {
                 kind: HatKind::WhenFlagClicked,
-                body: Sequence::from(block.next.map(|it| cx.block_ids[&it])),
+                body: Sequence::from(block.next.map(|it| cx.op_ids[&it])),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
         }
-        "looks_hide" => Block::Hide,
-        "looks_setsizeto" => Block::SetSize {
+        "looks_hide" => Op::Hide,
+        "looks_setsizeto" => Op::SetSize {
             to: cx.input(&mut block, "SIZE")?,
         },
-        "looks_switchcostumeto" => Block::SetCostume {
+        "looks_switchcostumeto" => Op::SetCostume {
             to: cx.input(&mut block, "COSTUME")?,
         },
-        "motion_changexby" => Block::ChangeX {
+        "motion_changexby" => Op::ChangeX {
             by: cx.input(&mut block, "DX")?,
         },
-        "motion_changeyby" => Block::ChangeY {
+        "motion_changeyby" => Op::ChangeY {
             by: cx.input(&mut block, "DY")?,
         },
-        "motion_gotoxy" => Block::GoToXY {
+        "motion_gotoxy" => Op::GoToXY {
             x: cx.input(&mut block, "X")?,
             y: cx.input(&mut block, "Y")?,
         },
-        "motion_setx" => Block::SetX {
+        "motion_setx" => Op::SetX {
             to: cx.input(&mut block, "X")?,
         },
-        "motion_xposition" => Block::XPosition,
-        "operator_add" => Block::Add(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?),
-        "operator_and" => Block::And(
+        "motion_xposition" => Op::XPosition,
+        "operator_add" => Op::Add(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?),
+        "operator_and" => Op::And(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
         ),
-        "operator_divide" => {
-            Block::Div(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?)
-        }
-        "operator_equals" => Block::Eq(
+        "operator_divide" => Op::Div(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?),
+        "operator_equals" => Op::Eq(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
         ),
-        "operator_gt" => Block::Gt(
+        "operator_gt" => Op::Gt(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
         ),
-        "operator_join" => Block::Join(
+        "operator_join" => Op::Join(
             cx.input(&mut block, "STRING1")?,
             cx.input(&mut block, "STRING2")?,
         ),
-        "operator_length" => Block::StringLength(cx.input(&mut block, "STRING")?),
-        "operator_letter_of" => Block::LetterOf {
+        "operator_length" => Op::StringLength(cx.input(&mut block, "STRING")?),
+        "operator_letter_of" => Op::LetterOf {
             index: cx.input(&mut block, "LETTER")?,
             string: cx.input(&mut block, "STRING")?,
         },
-        "operator_lt" => Block::Lt(
+        "operator_lt" => Op::Lt(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
         ),
@@ -358,38 +353,38 @@ fn lower_block(
                 .context("missing field: \"OPERATOR\"")?
                 .0;
             match &*operator {
-                "abs" => Block::Abs(num),
-                "floor" => Block::Floor(num),
-                "ceiling" => Block::Ceiling(num),
-                "sqrt" => Block::Sqrt(num),
-                "sin" => Block::Sin(num),
-                "cos" => Block::Cos(num),
-                "tan" => Block::Tan(num),
-                "asin" => Block::Asin(num),
-                "acos" => Block::Acos(num),
-                "atan" => Block::Atan(num),
-                "ln" => Block::Ln(num),
-                "log" => Block::Log(num),
-                "e ^" => Block::Exp(num),
-                "10 ^" => Block::Exp10(num),
+                "abs" => Op::Abs(num),
+                "floor" => Op::Floor(num),
+                "ceiling" => Op::Ceiling(num),
+                "sqrt" => Op::Sqrt(num),
+                "sin" => Op::Sin(num),
+                "cos" => Op::Cos(num),
+                "tan" => Op::Tan(num),
+                "asin" => Op::Asin(num),
+                "acos" => Op::Acos(num),
+                "atan" => Op::Atan(num),
+                "ln" => Op::Ln(num),
+                "log" => Op::Log(num),
+                "e ^" => Op::Exp(num),
+                "10 ^" => Op::Exp10(num),
                 _ => bail!("invalid mathop: {operator:?}"),
             }
         }
-        "operator_mod" => Block::Mod(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?),
+        "operator_mod" => Op::Mod(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?),
         "operator_multiply" => {
-            Block::Mul(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?)
+            Op::Mul(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?)
         }
-        "operator_not" => Block::Not(cx.input(&mut block, "OPERAND")?),
-        "operator_or" => Block::Or(
+        "operator_not" => Op::Not(cx.input(&mut block, "OPERAND")?),
+        "operator_or" => Op::Or(
             cx.input(&mut block, "OPERAND1")?,
             cx.input(&mut block, "OPERAND2")?,
         ),
         "operator_subtract" => {
-            Block::Sub(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?)
+            Op::Sub(cx.input(&mut block, "NUM1")?, cx.input(&mut block, "NUM2")?)
         }
-        "pen_clear" => Block::PenClear,
-        "pen_stamp" => Block::PenStamp,
-        "procedures_call" => Block::CallProcedure {
+        "pen_clear" => Op::PenClear,
+        "pen_stamp" => Op::PenStamp,
+        "procedures_call" => Op::CallProcedure {
             arguments: block
                 .inputs
                 .iter()
@@ -404,14 +399,14 @@ fn lower_block(
         "procedures_definition" => {
             let hat = hats.insert(Hat {
                 kind: HatKind::Procedure,
-                body: Sequence::from(block.next.map(|it| cx.block_ids[&it])),
+                body: Sequence::from(block.next.map(|it| cx.op_ids[&it])),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
         }
         "procedures_prototype" => return Ok(None),
-        "sensing_answer" => Block::Answer,
-        "sensing_askandwait" => Block::Ask(cx.input(&mut block, "QUESTION")?),
+        "sensing_answer" => Op::Answer,
+        "sensing_askandwait" => Op::Ask(cx.input(&mut block, "QUESTION")?),
         opcode => bail!("invalid opcode: {opcode:?}"),
     }))
 }
@@ -436,25 +431,25 @@ enum HatKind {
 
 #[derive(Debug, Default)]
 pub struct Sequence {
-    pub blocks: Vec<BlockId>,
+    pub ops: Vec<OpId>,
 }
 
-impl From<BlockId> for Sequence {
-    fn from(value: BlockId) -> Self {
+impl From<OpId> for Sequence {
+    fn from(value: OpId) -> Self {
         Self {
-            blocks: Vec::from([value]),
+            ops: Vec::from([value]),
         }
     }
 }
 
-impl From<Option<BlockId>> for Sequence {
-    fn from(value: Option<BlockId>) -> Self {
+impl From<Option<OpId>> for Sequence {
+    fn from(value: Option<OpId>) -> Self {
         value.map_or_else(Self::default, Self::from)
     }
 }
 
 #[derive(Debug)]
-pub enum Block {
+pub enum Op {
     If {
         condition: Value,
         then: Sequence,
@@ -583,14 +578,14 @@ pub enum Block {
 }
 
 pub enum Value {
-    Block(BlockId),
+    Op(OpId),
     Immediate(Immediate),
 }
 
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Block(block) => block.fmt(f),
+            Self::Op(op) => op.fmt(f),
             Self::Immediate(immediate) => immediate.fmt(f),
         }
     }
@@ -599,7 +594,7 @@ impl fmt::Debug for Value {
 slotmap::new_key_type! {
     pub struct HatId;
 
-    pub struct BlockId;
+    pub struct OpId;
 
     pub struct VariableId;
 
@@ -609,12 +604,12 @@ slotmap::new_key_type! {
 }
 
 struct LoweringContext {
-    blocks: SlotMap<BlockId, Block>,
-    block_ids: HashMap<de::BlockId, BlockId>,
+    ops: SlotMap<OpId, Op>,
+    op_ids: HashMap<de::BlockId, OpId>,
     variable_ids: HashMap<de::VariableId, VariableId>,
     list_ids: HashMap<de::ListId, ListId>,
     parameter_ids: HashMap<String, ParameterId>,
-    pseudos: HashMap<*const de::Input, BlockId>,
+    pseudos: HashMap<*const de::Input, OpId>,
 }
 
 impl LoweringContext {
@@ -629,18 +624,18 @@ impl LoweringContext {
 
     fn just_input(&self, input: de::Input, ptr: *const de::Input) -> Value {
         match input {
-            de::Input::Block(block) => Value::Block(self.block_ids[&block]),
+            de::Input::Block(block) => Value::Op(self.op_ids[&block]),
             de::Input::Number(n) => Value::Immediate(Immediate::Number(n)),
             de::Input::String(s) => Value::Immediate(Immediate::String(s)),
             de::Input::Broadcast(_) => todo!(),
-            de::Input::Variable(_) | de::Input::List(_) => Value::Block(self.pseudos[&ptr]),
+            de::Input::Variable(_) | de::Input::List(_) => Value::Op(self.pseudos[&ptr]),
         }
     }
 
     fn substack(&self, block: &mut de::Block, name: &str) -> Result<Sequence> {
         match block.inputs.remove(name) {
             None => bail!("missing substack: {name:?}"),
-            Some(de::Input::Block(block)) => Ok(self.block_ids[&block].into()),
+            Some(de::Input::Block(block)) => Ok(self.op_ids[&block].into()),
             Some(_) => bail!("substack {name:?} must be a block ID"),
         }
     }

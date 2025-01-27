@@ -8,7 +8,7 @@ use std::{fmt, ops};
 
 #[derive(Debug)]
 pub struct ComputedTypes {
-    blocks: SecondaryMap<hir::BlockId, Lattice>,
+    ops: SecondaryMap<hir::OpId, Lattice>,
     variables: SecondaryMap<hir::VariableId, Lattice>,
     lists: SecondaryMap<hir::ListId, Lattice>,
     parameters: SecondaryMap<hir::ParameterId, Lattice>,
@@ -34,7 +34,7 @@ impl Lattice {
         bool: true,
         ..Self::BOTTOM
     };
-    /// This is used for blocks that don't return anything.
+    /// This is used for ops that don't return anything.
     const BOTTOM: Self = Self {
         string: false,
         num: false,
@@ -72,7 +72,7 @@ impl ops::BitOr for Lattice {
 
 pub fn interpret(project: &hir::Project) -> ComputedTypes {
     let mut interpreter = Interpreter {
-        blocks: SecondaryMap::new(),
+        ops: SecondaryMap::new(),
         variables: SecondaryMap::new(),
         lists: SecondaryMap::new(),
         parameters: SecondaryMap::new(),
@@ -85,7 +85,7 @@ pub fn interpret(project: &hir::Project) -> ComputedTypes {
 }
 
 struct Interpreter<'a> {
-    blocks: SecondaryMap<hir::BlockId, Thing>,
+    ops: SecondaryMap<hir::OpId, Thing>,
     variables: SecondaryMap<hir::VariableId, Thing>,
     lists: SecondaryMap<hir::ListId, Thing>,
     parameters: SecondaryMap<hir::ParameterId, Thing>,
@@ -94,19 +94,19 @@ struct Interpreter<'a> {
 
 impl Interpreter<'_> {
     fn interpret_sequence(&mut self, body: &hir::Sequence) {
-        for &block in &body.blocks {
-            let thing = self.interpret_block(block);
-            let _: Option<Thing> = self.blocks.insert(block, thing);
+        for &op in &body.ops {
+            let thing = self.interpret_op(op);
+            let _: Option<Thing> = self.ops.insert(op, thing);
         }
     }
 
-    fn interpret_block(&mut self, id: hir::BlockId) -> Thing {
-        use hir::Block as B;
-        let Some(block) = self.project.blocks.get(id) else {
-            panic!("missing block: {id:?}");
+    fn interpret_op(&mut self, id: hir::OpId) -> Thing {
+        use hir::Op;
+        let Some(op) = self.project.ops.get(id) else {
+            panic!("missing op: {id:?}");
         };
-        match block {
-            B::CallProcedure { arguments } => {
+        match op {
+            Op::CallProcedure { arguments } => {
                 for (parameter, argument) in arguments {
                     let argument = self.interpret_value(argument);
                     *self
@@ -117,7 +117,7 @@ impl Interpreter<'_> {
                 }
                 Lattice::BOTTOM.into()
             }
-            B::SetVariable { variable, to } => {
+            Op::SetVariable { variable, to } => {
                 let to = self.interpret_value(to);
                 *self
                     .variables
@@ -126,7 +126,7 @@ impl Interpreter<'_> {
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= to;
                 Lattice::BOTTOM.into()
             }
-            B::ChangeVariable { variable, .. } => {
+            Op::ChangeVariable { variable, .. } => {
                 *self
                     .variables
                     .entry(*variable)
@@ -134,7 +134,7 @@ impl Interpreter<'_> {
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= Lattice::NUM.into();
                 Lattice::BOTTOM.into()
             }
-            B::AddToList { list, value } | B::ReplaceItemOfList { list, value, .. } => {
+            Op::AddToList { list, value } | Op::ReplaceItemOfList { list, value, .. } => {
                 let value = self.interpret_value(value);
                 *self
                     .lists
@@ -143,61 +143,61 @@ impl Interpreter<'_> {
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= value;
                 Lattice::BOTTOM.into()
             }
-            B::If { then, else_, .. } => {
+            Op::If { then, else_, .. } => {
                 self.interpret_sequence(then);
                 self.interpret_sequence(else_);
                 Lattice::BOTTOM.into()
             }
-            B::For { body, .. }
-            | B::Forever { body }
-            | B::While { body, .. }
-            | B::Until { body, .. } => {
+            Op::For { body, .. }
+            | Op::Forever { body }
+            | Op::While { body, .. }
+            | Op::Until { body, .. } => {
                 self.interpret_sequence(body);
                 Lattice::BOTTOM.into()
             }
-            B::StopAll
-            | B::StopOtherScriptsInSprite
-            | B::StopThisScript
-            | B::BroadcastAndWait(_)
-            | B::DeleteAllOfList(_)
-            | B::DeleteItemOfList { .. }
-            | B::Ask(_)
-            | B::ChangeX { .. }
-            | B::ChangeY { .. }
-            | B::GoToXY { .. }
-            | B::Hide
-            | B::PenClear
-            | B::PenStamp
-            | B::SetCostume { .. }
-            | B::SetSize { .. }
-            | B::SetX { .. } => Lattice::BOTTOM.into(),
-            B::Parameter(parameter) => Thing::from(*parameter),
-            B::Variable(variable) => Thing::from(*variable),
-            B::ItemOfList { list, .. } => Thing::from(*list),
-            B::List(_) | B::Join(..) | B::LetterOf { .. } | B::Answer => Lattice::STRING.into(),
-            B::LengthOfList(_)
-            | B::Add(..)
-            | B::Sub(..)
-            | B::Mul(..)
-            | B::Div(..)
-            | B::Mod(..)
-            | B::Abs(_)
-            | B::Floor(_)
-            | B::Ceiling(_)
-            | B::Sqrt(_)
-            | B::Sin(_)
-            | B::Cos(_)
-            | B::Tan(_)
-            | B::Asin(_)
-            | B::Acos(_)
-            | B::Atan(_)
-            | B::Ln(_)
-            | B::Log(_)
-            | B::Exp(_)
-            | B::Exp10(_)
-            | B::XPosition
-            | B::StringLength(_) => Lattice::NUM.into(),
-            B::Lt(..) | B::Eq(..) | B::Gt(..) | B::And(..) | B::Or(..) | B::Not(_) => {
+            Op::StopAll
+            | Op::StopOtherScriptsInSprite
+            | Op::StopThisScript
+            | Op::BroadcastAndWait(_)
+            | Op::DeleteAllOfList(_)
+            | Op::DeleteItemOfList { .. }
+            | Op::Ask(_)
+            | Op::ChangeX { .. }
+            | Op::ChangeY { .. }
+            | Op::GoToXY { .. }
+            | Op::Hide
+            | Op::PenClear
+            | Op::PenStamp
+            | Op::SetCostume { .. }
+            | Op::SetSize { .. }
+            | Op::SetX { .. } => Lattice::BOTTOM.into(),
+            Op::Parameter(parameter) => Thing::from(*parameter),
+            Op::Variable(variable) => Thing::from(*variable),
+            Op::ItemOfList { list, .. } => Thing::from(*list),
+            Op::List(_) | Op::Join(..) | Op::LetterOf { .. } | Op::Answer => Lattice::STRING.into(),
+            Op::LengthOfList(_)
+            | Op::Add(..)
+            | Op::Sub(..)
+            | Op::Mul(..)
+            | Op::Div(..)
+            | Op::Mod(..)
+            | Op::Abs(_)
+            | Op::Floor(_)
+            | Op::Ceiling(_)
+            | Op::Sqrt(_)
+            | Op::Sin(_)
+            | Op::Cos(_)
+            | Op::Tan(_)
+            | Op::Asin(_)
+            | Op::Acos(_)
+            | Op::Atan(_)
+            | Op::Ln(_)
+            | Op::Log(_)
+            | Op::Exp(_)
+            | Op::Exp10(_)
+            | Op::XPosition
+            | Op::StringLength(_) => Lattice::NUM.into(),
+            Op::Lt(..) | Op::Eq(..) | Op::Gt(..) | Op::And(..) | Op::Or(..) | Op::Not(_) => {
                 Lattice::BOOL.into()
             }
         }
@@ -205,7 +205,7 @@ impl Interpreter<'_> {
 
     fn interpret_value(&self, value: &hir::Value) -> Thing {
         match *value {
-            hir::Value::Block(block) => self.blocks[block].clone(),
+            hir::Value::Op(op) => self.ops[op].clone(),
             hir::Value::Immediate(hir::Immediate::String(_)) => Lattice::STRING.into(),
             hir::Value::Immediate(hir::Immediate::Number(_)) => Lattice::NUM.into(),
             hir::Value::Immediate(hir::Immediate::Bool(_)) => Lattice::BOOL.into(),
@@ -214,10 +214,10 @@ impl Interpreter<'_> {
 
     fn resolve(self) -> ComputedTypes {
         ComputedTypes {
-            blocks: self
-                .blocks
+            ops: self
+                .ops
                 .iter()
-                .map(|(block, thing)| (block, self.resolve_one(thing)))
+                .map(|(op, thing)| (op, self.resolve_one(thing)))
                 .collect(),
             variables: self
                 .variables
