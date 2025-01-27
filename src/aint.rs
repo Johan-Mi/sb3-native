@@ -79,7 +79,7 @@ pub fn interpret(project: &hir::Project) -> ComputedTypes {
         project,
     };
     for hat in project.hats.values() {
-        interpreter.interpret_sequence(&hat.body);
+        interpreter.interpret_basic_block(&hat.body);
     }
     interpreter.resolve()
 }
@@ -93,7 +93,7 @@ struct Interpreter<'a> {
 }
 
 impl Interpreter<'_> {
-    fn interpret_sequence(&mut self, body: &hir::Sequence) {
+    fn interpret_basic_block(&mut self, body: &hir::BasicBlock) {
         for &op in &body.ops {
             let thing = self.interpret_op(op);
             let _: Option<Thing> = self.ops.insert(op, thing);
@@ -144,15 +144,15 @@ impl Interpreter<'_> {
                 Lattice::BOTTOM.into()
             }
             Op::If { then, else_, .. } => {
-                self.interpret_sequence(then);
-                self.interpret_sequence(else_);
+                self.interpret_basic_block(then);
+                self.interpret_basic_block(else_);
                 Lattice::BOTTOM.into()
             }
             Op::For { body, .. }
             | Op::Forever { body }
             | Op::While { body, .. }
             | Op::Until { body, .. } => {
-                self.interpret_sequence(body);
+                self.interpret_basic_block(body);
                 Lattice::BOTTOM.into()
             }
             Op::StopAll

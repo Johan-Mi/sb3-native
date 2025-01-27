@@ -73,20 +73,20 @@ impl Project {
             .collect::<Result<_>>()?;
 
         for hat in hats.values_mut() {
-            fill_sequence(&mut hat.body, &predecessors, &nexts);
+            fill_basic_block(&mut hat.body, &predecessors, &nexts);
         }
 
         for op in cx.ops.values_mut() {
             match op {
                 Op::If { then, else_, .. } => {
-                    fill_sequence(then, &predecessors, &nexts);
-                    fill_sequence(else_, &predecessors, &nexts);
+                    fill_basic_block(then, &predecessors, &nexts);
+                    fill_basic_block(else_, &predecessors, &nexts);
                 }
                 Op::For { body, .. }
                 | Op::Forever { body }
                 | Op::While { body, .. }
                 | Op::Until { body, .. } => {
-                    fill_sequence(body, &predecessors, &nexts);
+                    fill_basic_block(body, &predecessors, &nexts);
                 }
                 _ => {}
             }
@@ -140,27 +140,27 @@ impl LoweringContext {
     }
 }
 
-fn fill_sequence(
-    sequence: &mut Sequence,
+fn fill_basic_block(
+    basic_block: &mut BasicBlock,
     predecessors: &SecondaryMap<OpId, Vec<OpId>>,
     nexts: &SecondaryMap<OpId, OpId>,
 ) {
-    let mut next = sequence.ops.pop();
+    let mut next = basic_block.ops.pop();
     while let Some(op) = next {
-        append_predecessors(sequence, op, predecessors);
+        append_predecessors(basic_block, op, predecessors);
         next = nexts.get(op).copied();
     }
 }
 
 fn append_predecessors(
-    sequence: &mut Sequence,
+    basic_block: &mut BasicBlock,
     op: OpId,
     predecessors: &SecondaryMap<OpId, Vec<OpId>>,
 ) {
     for &predecessor in predecessors.get(op).into_iter().flatten() {
-        append_predecessors(sequence, predecessor, predecessors);
+        append_predecessors(basic_block, predecessor, predecessors);
     }
-    sequence.ops.push(op);
+    basic_block.ops.push(op);
 }
 
 fn lower_block(
@@ -193,7 +193,7 @@ fn lower_block(
         "control_if" => Op::If {
             condition: cx.input(&mut block, "CONDITION")?,
             then: cx.substack(&mut block, "SUBSTACK")?,
-            else_: Sequence::default(),
+            else_: BasicBlock::default(),
         },
         "control_if_else" => Op::If {
             condition: cx.input(&mut block, "CONDITION")?,
@@ -284,7 +284,7 @@ fn lower_block(
                 .0;
             let hat = hats.insert(Hat {
                 kind: HatKind::WhenReceived { broadcast_name },
-                body: Sequence::from(block.next.map(|it| cx.op_ids[&it])),
+                body: BasicBlock::from(block.next.map(|it| cx.op_ids[&it])),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
@@ -292,7 +292,7 @@ fn lower_block(
         "event_whenflagclicked" => {
             let hat = hats.insert(Hat {
                 kind: HatKind::WhenFlagClicked,
-                body: Sequence::from(block.next.map(|it| cx.op_ids[&it])),
+                body: BasicBlock::from(block.next.map(|it| cx.op_ids[&it])),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
@@ -399,7 +399,7 @@ fn lower_block(
         "procedures_definition" => {
             let hat = hats.insert(Hat {
                 kind: HatKind::Procedure,
-                body: Sequence::from(block.next.map(|it| cx.op_ids[&it])),
+                body: BasicBlock::from(block.next.map(|it| cx.op_ids[&it])),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
@@ -419,7 +419,7 @@ struct Target {
 #[derive(Debug)]
 pub struct Hat {
     kind: HatKind,
-    pub body: Sequence,
+    pub body: BasicBlock,
 }
 
 #[derive(Debug)]
@@ -430,11 +430,11 @@ enum HatKind {
 }
 
 #[derive(Debug, Default)]
-pub struct Sequence {
+pub struct BasicBlock {
     pub ops: Vec<OpId>,
 }
 
-impl From<OpId> for Sequence {
+impl From<OpId> for BasicBlock {
     fn from(value: OpId) -> Self {
         Self {
             ops: Vec::from([value]),
@@ -442,7 +442,7 @@ impl From<OpId> for Sequence {
     }
 }
 
-impl From<Option<OpId>> for Sequence {
+impl From<Option<OpId>> for BasicBlock {
     fn from(value: Option<OpId>) -> Self {
         value.map_or_else(Self::default, Self::from)
     }
@@ -452,24 +452,24 @@ impl From<Option<OpId>> for Sequence {
 pub enum Op {
     If {
         condition: Value,
-        then: Sequence,
-        else_: Sequence,
+        then: BasicBlock,
+        else_: BasicBlock,
     },
     For {
         variable: Option<VariableId>,
         times: Value,
-        body: Sequence,
+        body: BasicBlock,
     },
     Forever {
-        body: Sequence,
+        body: BasicBlock,
     },
     While {
         condition: Value,
-        body: Sequence,
+        body: BasicBlock,
     },
     Until {
         condition: Value,
-        body: Sequence,
+        body: BasicBlock,
     },
 
     CallProcedure {
@@ -632,7 +632,7 @@ impl LoweringContext {
         }
     }
 
-    fn substack(&self, block: &mut de::Block, name: &str) -> Result<Sequence> {
+    fn substack(&self, block: &mut de::Block, name: &str) -> Result<BasicBlock> {
         match block.inputs.remove(name) {
             None => bail!("missing substack: {name:?}"),
             Some(de::Input::Block(block)) => Ok(self.op_ids[&block].into()),
