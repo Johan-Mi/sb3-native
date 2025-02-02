@@ -24,9 +24,6 @@ fn main() -> Result<()> {
     }
 
     let project = hir::Project::lower(project)?;
-    if env::var_os("DUMP_HIR").is_some() {
-        eprintln!("{project:#?}");
-    }
 
     let aint = aint::interpret(&project);
     if env::var_os("DUMP_AINT").is_some() {

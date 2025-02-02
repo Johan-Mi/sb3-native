@@ -3,15 +3,18 @@
 #![deny(clippy::wildcard_enum_match_arm)]
 
 use crate::hir;
-use slotmap::SecondaryMap;
-use std::{fmt, ops};
+use beach_map::Id;
+use std::{
+    collections::{HashMap, HashSet},
+    fmt, ops,
+};
 
 #[derive(Debug)]
 pub struct ComputedTypes {
-    ops: SecondaryMap<hir::OpId, Lattice>,
-    variables: SecondaryMap<hir::VariableId, Lattice>,
-    lists: SecondaryMap<hir::ListId, Lattice>,
-    parameters: SecondaryMap<hir::ParameterId, Lattice>,
+    ops: HashMap<Id<hir::Op>, Lattice>,
+    variables: HashMap<Id<hir::Variable>, Lattice>,
+    lists: HashMap<Id<hir::List>, Lattice>,
+    parameters: HashMap<Id<hir::Parameter>, Lattice>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -72,23 +75,23 @@ impl ops::BitOr for Lattice {
 
 pub fn interpret(project: &hir::Project) -> ComputedTypes {
     let mut interpreter = Interpreter {
-        ops: SecondaryMap::new(),
-        variables: SecondaryMap::new(),
-        lists: SecondaryMap::new(),
-        parameters: SecondaryMap::new(),
+        ops: HashMap::new(),
+        variables: HashMap::new(),
+        lists: HashMap::new(),
+        parameters: HashMap::new(),
         project,
     };
-    for basic_block in project.basic_blocks.values() {
+    for basic_block in &project.basic_blocks {
         interpreter.interpret_basic_block(basic_block);
     }
     interpreter.resolve()
 }
 
 struct Interpreter<'a> {
-    ops: SecondaryMap<hir::OpId, Thing>,
-    variables: SecondaryMap<hir::VariableId, Thing>,
-    lists: SecondaryMap<hir::ListId, Thing>,
-    parameters: SecondaryMap<hir::ParameterId, Thing>,
+    ops: HashMap<Id<hir::Op>, Thing>,
+    variables: HashMap<Id<hir::Variable>, Thing>,
+    lists: HashMap<Id<hir::List>, Thing>,
+    parameters: HashMap<Id<hir::Parameter>, Thing>,
     project: &'a hir::Project,
 }
 
@@ -100,19 +103,18 @@ impl Interpreter<'_> {
         }
     }
 
-    fn interpret_op(&mut self, id: hir::OpId) -> Thing {
+    fn interpret_op(&mut self, id: Id<hir::Op>) -> Thing {
         use hir::Op;
         let Some(op) = self.project.ops.get(id) else {
             panic!("missing op: {id:?}");
         };
         match op {
             Op::CallProcedure { arguments } => {
-                for (parameter, argument) in arguments {
+                for (&parameter, argument) in arguments {
                     let argument = self.interpret_value(argument);
                     *self
                         .parameters
                         .entry(parameter)
-                        .unwrap()
                         .or_insert_with(|| Lattice::BOTTOM.into()) |= argument;
                 }
                 Lattice::BOTTOM.into()
@@ -122,7 +124,6 @@ impl Interpreter<'_> {
                 *self
                     .variables
                     .entry(*variable)
-                    .unwrap()
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= to;
                 Lattice::BOTTOM.into()
             }
@@ -130,7 +131,6 @@ impl Interpreter<'_> {
                 *self
                     .variables
                     .entry(*variable)
-                    .unwrap()
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= Lattice::NUM.into();
                 Lattice::BOTTOM.into()
             }
@@ -139,7 +139,6 @@ impl Interpreter<'_> {
                 *self
                     .lists
                     .entry(*list)
-                    .unwrap()
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= value;
                 Lattice::BOTTOM.into()
             }
@@ -198,7 +197,7 @@ impl Interpreter<'_> {
 
     fn interpret_value(&self, value: &hir::Value) -> Thing {
         match *value {
-            hir::Value::Op(op) => self.ops[op].clone(),
+            hir::Value::Op(op) => self.ops[&op].clone(),
             hir::Value::Immediate(hir::Immediate::String(_)) => Lattice::STRING.into(),
             hir::Value::Immediate(hir::Immediate::Number(_)) => Lattice::NUM.into(),
             hir::Value::Immediate(hir::Immediate::Bool(_)) => Lattice::BOOL.into(),
@@ -210,22 +209,22 @@ impl Interpreter<'_> {
             ops: self
                 .ops
                 .iter()
-                .map(|(op, thing)| (op, self.resolve_one(thing)))
+                .map(|(&op, thing)| (op, self.resolve_one(thing)))
                 .collect(),
             variables: self
                 .variables
                 .iter()
-                .map(|(variable, thing)| (variable, self.resolve_one(thing)))
+                .map(|(&variable, thing)| (variable, self.resolve_one(thing)))
                 .collect(),
             lists: self
                 .lists
                 .iter()
-                .map(|(list, thing)| (list, self.resolve_one(thing)))
+                .map(|(&list, thing)| (list, self.resolve_one(thing)))
                 .collect(),
             parameters: self
                 .parameters
                 .iter()
-                .map(|(parameter, thing)| (parameter, self.resolve_one(thing)))
+                .map(|(&parameter, thing)| (parameter, self.resolve_one(thing)))
                 .collect(),
         }
     }
@@ -233,17 +232,17 @@ impl Interpreter<'_> {
     fn resolve_one(&self, thing: &Thing) -> Lattice {
         let variables = thing
             .variables
-            .keys()
+            .iter()
             .filter_map(|it| self.variables.get(it))
             .map(|it| self.resolve_one(it));
         let lists = thing
             .lists
-            .keys()
+            .iter()
             .filter_map(|it| self.lists.get(it))
             .map(|it| self.resolve_one(it));
         let parameters = thing
             .parameters
-            .keys()
+            .iter()
             .filter_map(|it| self.parameters.get(it))
             .map(|it| self.resolve_one(it));
         variables
@@ -256,51 +255,51 @@ impl Interpreter<'_> {
 #[derive(Clone)]
 struct Thing {
     lattice: Lattice,
-    variables: SecondaryMap<hir::VariableId, ()>,
-    lists: SecondaryMap<hir::ListId, ()>,
-    parameters: SecondaryMap<hir::ParameterId, ()>,
+    variables: HashSet<Id<hir::Variable>>,
+    lists: HashSet<Id<hir::List>>,
+    parameters: HashSet<Id<hir::Parameter>>,
 }
 
 impl From<Lattice> for Thing {
     fn from(value: Lattice) -> Self {
         Self {
             lattice: value,
-            variables: SecondaryMap::new(),
-            lists: SecondaryMap::new(),
-            parameters: SecondaryMap::new(),
+            variables: HashSet::new(),
+            lists: HashSet::new(),
+            parameters: HashSet::new(),
         }
     }
 }
 
-impl From<hir::VariableId> for Thing {
-    fn from(value: hir::VariableId) -> Self {
+impl From<Id<hir::Variable>> for Thing {
+    fn from(value: Id<hir::Variable>) -> Self {
         Self {
             lattice: Lattice::BOTTOM,
-            variables: SecondaryMap::from_iter([(value, ())]),
-            lists: SecondaryMap::new(),
-            parameters: SecondaryMap::new(),
+            variables: HashSet::from([value]),
+            lists: HashSet::new(),
+            parameters: HashSet::new(),
         }
     }
 }
 
-impl From<hir::ListId> for Thing {
-    fn from(value: hir::ListId) -> Self {
+impl From<Id<hir::List>> for Thing {
+    fn from(value: Id<hir::List>) -> Self {
         Self {
             lattice: Lattice::BOTTOM,
-            variables: SecondaryMap::new(),
-            lists: SecondaryMap::from_iter([(value, ())]),
-            parameters: SecondaryMap::new(),
+            variables: HashSet::new(),
+            lists: HashSet::from([value]),
+            parameters: HashSet::new(),
         }
     }
 }
 
-impl From<hir::ParameterId> for Thing {
-    fn from(value: hir::ParameterId) -> Self {
+impl From<Id<hir::Parameter>> for Thing {
+    fn from(value: Id<hir::Parameter>) -> Self {
         Self {
             lattice: Lattice::BOTTOM,
-            variables: SecondaryMap::new(),
-            lists: SecondaryMap::new(),
-            parameters: SecondaryMap::from_iter([(value, ())]),
+            variables: HashSet::new(),
+            lists: HashSet::new(),
+            parameters: HashSet::from([value]),
         }
     }
 }

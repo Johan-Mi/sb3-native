@@ -1,17 +1,16 @@
 use super::{
-    BasicBlock, BasicBlockId, Hat, HatId, HatKind, Immediate, ListId, Op, OpId, ParameterId,
-    Project, Target, Value, VariableId,
+    BasicBlock, Hat, HatKind, Immediate, List, Op, Parameter, Project, Target, Value, Variable,
 };
 use crate::de;
 use anyhow::{bail, Context, Result};
-use slotmap::{SecondaryMap, SlotMap};
-use std::collections::HashMap;
+use beach_map::{BeachMap, Id};
+use std::collections::{HashMap, HashSet};
 
 impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
         let mut cx = LoweringContext::new(&de);
 
-        let mut nexts = SecondaryMap::new();
+        let mut nexts = HashMap::new();
         let predecessors = de
             .targets
             .iter()
@@ -41,21 +40,21 @@ impl Project {
                 }
                 (!p.is_empty()).then_some((id, p))
             })
-            .collect::<SecondaryMap<_, _>>();
+            .collect::<HashMap<_, _>>();
 
         if std::env::var_os("DUMP_HIR_CFG").is_some() {
             eprintln!("{predecessors:#?}");
             eprintln!("{nexts:#?}");
         }
 
-        let mut hats = SlotMap::with_key();
-        let mut basic_blocks = SlotMap::with_key();
+        let mut hats = BeachMap::new();
+        let mut basic_blocks = BeachMap::new();
 
         let targets = de
             .targets
             .into_iter()
             .map(|target| {
-                let mut my_hats = SecondaryMap::new();
+                let mut my_hats = HashSet::new();
 
                 for (id, block) in target.blocks {
                     let id = cx.op_ids[&id];
@@ -70,7 +69,7 @@ impl Project {
             })
             .collect::<Result<_>>()?;
 
-        for basic_block in basic_blocks.values_mut() {
+        for basic_block in &mut basic_blocks {
             fill_basic_block(basic_block, &predecessors, &nexts);
         }
 
@@ -84,20 +83,20 @@ impl Project {
 }
 
 struct LoweringContext {
-    ops: SlotMap<OpId, Op>,
-    op_ids: HashMap<de::BlockId, OpId>,
-    variable_ids: HashMap<de::VariableId, VariableId>,
-    list_ids: HashMap<de::ListId, ListId>,
-    parameter_ids: HashMap<String, ParameterId>,
-    pseudos: HashMap<*const de::Input, OpId>,
+    ops: BeachMap<Op>,
+    op_ids: HashMap<de::BlockId, Id<Op>>,
+    variable_ids: HashMap<de::VariableId, Id<Variable>>,
+    list_ids: HashMap<de::ListId, Id<List>>,
+    parameter_ids: HashMap<String, Id<Parameter>>,
+    pseudos: HashMap<*const de::Input, Id<Op>>,
 }
 
 impl LoweringContext {
     fn new(de: &de::Project) -> Self {
-        let mut ops = SlotMap::with_key();
-        let mut variables = SlotMap::with_key();
-        let mut lists = SlotMap::with_key();
-        let mut parameters = SlotMap::with_key();
+        let mut ops = BeachMap::new();
+        let mut variables = BeachMap::new();
+        let mut lists = BeachMap::new();
+        let mut parameters = BeachMap::new();
 
         Self {
             op_ids: de
@@ -111,13 +110,13 @@ impl LoweringContext {
                 .targets
                 .iter()
                 .flat_map(|it| it.variables.keys())
-                .map(|it| (it.clone(), variables.insert(())))
+                .map(|it| (it.clone(), variables.insert(Variable)))
                 .collect(),
             list_ids: de
                 .targets
                 .iter()
                 .flat_map(|it| it.lists.keys())
-                .map(|it| (it.clone(), lists.insert(())))
+                .map(|it| (it.clone(), lists.insert(List)))
                 .collect(),
             parameter_ids: de
                 .targets
@@ -125,7 +124,7 @@ impl LoweringContext {
                 .flat_map(|it| it.blocks.values())
                 .filter(|it| it.opcode == "procedures_prototype")
                 .flat_map(|it| it.inputs.keys())
-                .map(|it| (it.clone(), parameters.insert(())))
+                .map(|it| (it.clone(), parameters.insert(Parameter)))
                 .collect(),
             pseudos: HashMap::new(),
         }
@@ -161,22 +160,22 @@ impl LoweringContext {
 
 fn fill_basic_block(
     basic_block: &mut BasicBlock,
-    predecessors: &SecondaryMap<OpId, Vec<OpId>>,
-    nexts: &SecondaryMap<OpId, OpId>,
+    predecessors: &HashMap<Id<Op>, Vec<Id<Op>>>,
+    nexts: &HashMap<Id<Op>, Id<Op>>,
 ) {
     let mut next = basic_block.ops.pop();
     while let Some(op) = next {
         append_predecessors(basic_block, op, predecessors);
-        next = nexts.get(op).copied();
+        next = nexts.get(&op).copied();
     }
 }
 
 fn append_predecessors(
     basic_block: &mut BasicBlock,
-    op: OpId,
-    predecessors: &SecondaryMap<OpId, Vec<OpId>>,
+    op: Id<Op>,
+    predecessors: &HashMap<Id<Op>, Vec<Id<Op>>>,
 ) {
-    for &predecessor in predecessors.get(op).into_iter().flatten() {
+    for &predecessor in predecessors.get(&op).into_iter().flatten() {
         append_predecessors(basic_block, predecessor, predecessors);
     }
     basic_block.ops.push(op);
@@ -184,9 +183,9 @@ fn append_predecessors(
 
 fn lower_block(
     mut block: de::Block,
-    hats: &mut SlotMap<HatId, Hat>,
-    my_hats: &mut SecondaryMap<HatId, ()>,
-    basic_blocks: &mut SlotMap<BasicBlockId, BasicBlock>,
+    hats: &mut BeachMap<Hat>,
+    my_hats: &mut HashSet<Id<Hat>>,
+    basic_blocks: &mut BeachMap<BasicBlock>,
     cx: &LoweringContext,
 ) -> Result<Option<Op>, anyhow::Error> {
     Ok(Some(match &*block.opcode {
@@ -306,7 +305,7 @@ fn lower_block(
                 kind: HatKind::WhenReceived { broadcast_name },
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(my_hats.insert(hat, ()).is_none());
+            assert!(my_hats.insert(hat));
             return Ok(None);
         }
         "event_whenflagclicked" => {
@@ -314,7 +313,7 @@ fn lower_block(
                 kind: HatKind::WhenFlagClicked,
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(my_hats.insert(hat, ()).is_none());
+            assert!(my_hats.insert(hat));
             return Ok(None);
         }
         "looks_hide" => Op::Hide,
@@ -421,7 +420,7 @@ fn lower_block(
                 kind: HatKind::Procedure,
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(my_hats.insert(hat, ()).is_none());
+            assert!(my_hats.insert(hat));
             return Ok(None);
         }
         "procedures_prototype" => return Ok(None),

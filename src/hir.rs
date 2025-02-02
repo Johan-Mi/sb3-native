@@ -1,28 +1,30 @@
 mod lowering;
 
 use crate::de;
-use slotmap::{SecondaryMap, SlotMap};
-use std::fmt;
+use beach_map::{BeachMap, Id};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+};
 
 pub use de::RawValue as Immediate;
 
-#[derive(Debug)]
 pub struct Project {
     targets: Vec<Target>,
-    pub hats: SlotMap<HatId, Hat>,
-    pub basic_blocks: SlotMap<BasicBlockId, BasicBlock>,
-    pub ops: SlotMap<OpId, Op>,
+    pub hats: BeachMap<Hat>,
+    pub basic_blocks: BeachMap<BasicBlock>,
+    pub ops: BeachMap<Op>,
 }
 
 #[derive(Debug)]
 struct Target {
-    hats: SecondaryMap<HatId, ()>,
+    hats: HashSet<Id<Hat>>,
 }
 
 #[derive(Debug)]
 pub struct Hat {
     kind: HatKind,
-    pub body: BasicBlockId,
+    pub body: Id<BasicBlock>,
 }
 
 #[derive(Debug)]
@@ -34,19 +36,19 @@ enum HatKind {
 
 #[derive(Debug, Default)]
 pub struct BasicBlock {
-    pub ops: Vec<OpId>,
+    pub ops: Vec<Id<Op>>,
 }
 
-impl From<OpId> for BasicBlock {
-    fn from(value: OpId) -> Self {
+impl From<Id<Op>> for BasicBlock {
+    fn from(value: Id<Op>) -> Self {
         Self {
             ops: Vec::from([value]),
         }
     }
 }
 
-impl From<Option<OpId>> for BasicBlock {
-    fn from(value: Option<OpId>) -> Self {
+impl From<Option<Id<Op>>> for BasicBlock {
+    fn from(value: Option<Id<Op>>) -> Self {
         value.map_or_else(Self::default, Self::from)
     }
 }
@@ -55,30 +57,30 @@ impl From<Option<OpId>> for BasicBlock {
 pub enum Op {
     If {
         condition: Value,
-        then: BasicBlockId,
-        else_: BasicBlockId,
+        then: Id<BasicBlock>,
+        else_: Id<BasicBlock>,
     },
     For {
-        variable: Option<VariableId>,
+        variable: Option<Id<Variable>>,
         times: Value,
-        body: BasicBlockId,
+        body: Id<BasicBlock>,
     },
     Forever {
-        body: BasicBlockId,
+        body: Id<BasicBlock>,
     },
     While {
         condition: Value,
-        body: BasicBlockId,
+        body: Id<BasicBlock>,
     },
     Until {
         condition: Value,
-        body: BasicBlockId,
+        body: Id<BasicBlock>,
     },
 
     CallProcedure {
-        arguments: SecondaryMap<ParameterId, Value>,
+        arguments: HashMap<Id<Parameter>, Value>,
     },
-    Parameter(ParameterId),
+    Parameter(Id<Parameter>),
 
     StopAll,
     StopOtherScriptsInSprite,
@@ -86,32 +88,32 @@ pub enum Op {
 
     BroadcastAndWait(Value),
 
-    Variable(VariableId),
+    Variable(Id<Variable>),
     SetVariable {
-        variable: VariableId,
+        variable: Id<Variable>,
         to: Value,
     },
     ChangeVariable {
-        variable: VariableId,
+        variable: Id<Variable>,
         by: Value,
     },
-    List(ListId),
+    List(Id<List>),
     AddToList {
-        list: ListId,
+        list: Id<List>,
         value: Value,
     },
-    DeleteAllOfList(ListId),
+    DeleteAllOfList(Id<List>),
     DeleteItemOfList {
-        list: ListId,
+        list: Id<List>,
         index: Value,
     },
     ItemOfList {
-        list: ListId,
+        list: Id<List>,
         index: Value,
     },
-    LengthOfList(ListId),
+    LengthOfList(Id<List>),
     ReplaceItemOfList {
-        list: ListId,
+        list: Id<List>,
         index: Value,
         value: Value,
     },
@@ -181,7 +183,7 @@ pub enum Op {
 }
 
 pub enum Value {
-    Op(OpId),
+    Op(Id<Op>),
     Immediate(Immediate),
 }
 
@@ -194,16 +196,8 @@ impl fmt::Debug for Value {
     }
 }
 
-slotmap::new_key_type! {
-    pub struct HatId;
+pub struct Variable;
 
-    pub struct BasicBlockId;
+pub struct List;
 
-    pub struct OpId;
-
-    pub struct VariableId;
-
-    pub struct ListId;
-
-    pub struct ParameterId;
-}
+pub struct Parameter;
