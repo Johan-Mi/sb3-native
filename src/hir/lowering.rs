@@ -1,6 +1,6 @@
 use super::{
-    BasicBlock, Hat, HatId, HatKind, Immediate, ListId, Op, OpId, ParameterId, Project, Target,
-    Value, VariableId,
+    BasicBlock, BasicBlockId, Hat, HatId, HatKind, Immediate, ListId, Op, OpId, ParameterId,
+    Project, Target, Value, VariableId,
 };
 use crate::de;
 use anyhow::{bail, Context, Result};
@@ -49,6 +49,7 @@ impl Project {
         }
 
         let mut hats = SlotMap::with_key();
+        let mut basic_blocks = SlotMap::with_key();
 
         let targets = de
             .targets
@@ -58,7 +59,9 @@ impl Project {
 
                 for (id, block) in target.blocks {
                     let id = cx.op_ids[&id];
-                    if let Some(op) = lower_block(block, &mut hats, &mut my_hats, &cx)? {
+                    if let Some(op) =
+                        lower_block(block, &mut hats, &mut my_hats, &mut basic_blocks, &cx)?
+                    {
                         cx.ops[id] = op;
                     }
                 }
@@ -67,29 +70,14 @@ impl Project {
             })
             .collect::<Result<_>>()?;
 
-        for hat in hats.values_mut() {
-            fill_basic_block(&mut hat.body, &predecessors, &nexts);
-        }
-
-        for op in cx.ops.values_mut() {
-            match op {
-                Op::If { then, else_, .. } => {
-                    fill_basic_block(then, &predecessors, &nexts);
-                    fill_basic_block(else_, &predecessors, &nexts);
-                }
-                Op::For { body, .. }
-                | Op::Forever { body }
-                | Op::While { body, .. }
-                | Op::Until { body, .. } => {
-                    fill_basic_block(body, &predecessors, &nexts);
-                }
-                _ => {}
-            }
+        for basic_block in basic_blocks.values_mut() {
+            fill_basic_block(basic_block, &predecessors, &nexts);
         }
 
         Ok(Self {
             targets,
             hats,
+            basic_blocks,
             ops: cx.ops,
         })
     }
@@ -198,13 +186,14 @@ fn lower_block(
     mut block: de::Block,
     hats: &mut SlotMap<HatId, Hat>,
     my_hats: &mut SecondaryMap<HatId, ()>,
+    basic_blocks: &mut SlotMap<BasicBlockId, BasicBlock>,
     cx: &LoweringContext,
 ) -> Result<Option<Op>, anyhow::Error> {
     Ok(Some(match &*block.opcode {
         "argument_reporter_string_number" => todo!("look up parameters by user-visible name"),
         "control_for_each" => {
             let times = cx.input(&mut block, "VALUE")?;
-            let body = cx.substack(&mut block, "SUBSTACK")?;
+            let body = basic_blocks.insert(cx.substack(&mut block, "SUBSTACK")?);
             Op::For {
                 variable: Some(
                     cx.variable_ids[&block
@@ -218,27 +207,27 @@ fn lower_block(
             }
         }
         "control_forever" => {
-            let body = cx.substack(&mut block, "SUBSTACK")?;
+            let body = basic_blocks.insert(cx.substack(&mut block, "SUBSTACK")?);
             Op::Forever { body }
         }
         "control_if" => Op::If {
             condition: cx.input(&mut block, "CONDITION")?,
-            then: cx.substack(&mut block, "SUBSTACK")?,
-            else_: BasicBlock::default(),
+            then: basic_blocks.insert(cx.substack(&mut block, "SUBSTACK")?),
+            else_: basic_blocks.insert(BasicBlock::default()),
         },
         "control_if_else" => Op::If {
             condition: cx.input(&mut block, "CONDITION")?,
-            then: cx.substack(&mut block, "SUBSTACK")?,
-            else_: cx.substack(&mut block, "SUBSTACK2")?,
+            then: basic_blocks.insert(cx.substack(&mut block, "SUBSTACK")?),
+            else_: basic_blocks.insert(cx.substack(&mut block, "SUBSTACK2")?),
         },
         "control_repeat" => Op::For {
             variable: None,
             times: cx.input(&mut block, "TIMES")?,
-            body: cx.substack(&mut block, "SUBSTACK")?,
+            body: basic_blocks.insert(cx.substack(&mut block, "SUBSTACK")?),
         },
         "control_repeat_until" => Op::Until {
             condition: cx.input(&mut block, "CONDITION")?,
-            body: cx.substack(&mut block, "SUBSTACK")?,
+            body: basic_blocks.insert(cx.substack(&mut block, "SUBSTACK")?),
         },
         "control_stop" => {
             let stop_option = &*block
@@ -257,7 +246,7 @@ fn lower_block(
         }
         "control_while" => Op::While {
             condition: cx.input(&mut block, "CONDITION")?,
-            body: cx.substack(&mut block, "SUBSTACK")?,
+            body: basic_blocks.insert(cx.substack(&mut block, "SUBSTACK")?),
         },
         "data_addtolist" => {
             let value = cx.input(&mut block, "ITEM")?;
@@ -315,7 +304,7 @@ fn lower_block(
                 .0;
             let hat = hats.insert(Hat {
                 kind: HatKind::WhenReceived { broadcast_name },
-                body: BasicBlock::from(block.next.map(|it| cx.op_ids[&it])),
+                body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
@@ -323,7 +312,7 @@ fn lower_block(
         "event_whenflagclicked" => {
             let hat = hats.insert(Hat {
                 kind: HatKind::WhenFlagClicked,
-                body: BasicBlock::from(block.next.map(|it| cx.op_ids[&it])),
+                body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);
@@ -430,7 +419,7 @@ fn lower_block(
         "procedures_definition" => {
             let hat = hats.insert(Hat {
                 kind: HatKind::Procedure,
-                body: BasicBlock::from(block.next.map(|it| cx.op_ids[&it])),
+                body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
             assert!(my_hats.insert(hat, ()).is_none());
             return Ok(None);

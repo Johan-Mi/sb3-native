@@ -78,8 +78,8 @@ pub fn interpret(project: &hir::Project) -> ComputedTypes {
         parameters: SecondaryMap::new(),
         project,
     };
-    for hat in project.hats.values() {
-        interpreter.interpret_basic_block(&hat.body);
+    for basic_block in project.basic_blocks.values() {
+        interpreter.interpret_basic_block(basic_block);
     }
     interpreter.resolve()
 }
@@ -143,19 +143,12 @@ impl Interpreter<'_> {
                     .or_insert_with(|| Lattice::BOTTOM.into()) |= value;
                 Lattice::BOTTOM.into()
             }
-            Op::If { then, else_, .. } => {
-                self.interpret_basic_block(then);
-                self.interpret_basic_block(else_);
-                Lattice::BOTTOM.into()
-            }
-            Op::For { body, .. }
-            | Op::Forever { body }
-            | Op::While { body, .. }
-            | Op::Until { body, .. } => {
-                self.interpret_basic_block(body);
-                Lattice::BOTTOM.into()
-            }
-            Op::StopAll
+            Op::If { .. }
+            | Op::For { .. }
+            | Op::Forever { .. }
+            | Op::While { .. }
+            | Op::Until { .. }
+            | Op::StopAll
             | Op::StopOtherScriptsInSprite
             | Op::StopThisScript
             | Op::BroadcastAndWait(_)

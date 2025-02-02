@@ -10,6 +10,7 @@ pub use de::RawValue as Immediate;
 pub struct Project {
     targets: Vec<Target>,
     pub hats: SlotMap<HatId, Hat>,
+    pub basic_blocks: SlotMap<BasicBlockId, BasicBlock>,
     pub ops: SlotMap<OpId, Op>,
 }
 
@@ -21,7 +22,7 @@ struct Target {
 #[derive(Debug)]
 pub struct Hat {
     kind: HatKind,
-    pub body: BasicBlock,
+    pub body: BasicBlockId,
 }
 
 #[derive(Debug)]
@@ -54,24 +55,24 @@ impl From<Option<OpId>> for BasicBlock {
 pub enum Op {
     If {
         condition: Value,
-        then: BasicBlock,
-        else_: BasicBlock,
+        then: BasicBlockId,
+        else_: BasicBlockId,
     },
     For {
         variable: Option<VariableId>,
         times: Value,
-        body: BasicBlock,
+        body: BasicBlockId,
     },
     Forever {
-        body: BasicBlock,
+        body: BasicBlockId,
     },
     While {
         condition: Value,
-        body: BasicBlock,
+        body: BasicBlockId,
     },
     Until {
         condition: Value,
-        body: BasicBlock,
+        body: BasicBlockId,
     },
 
     CallProcedure {
@@ -195,6 +196,8 @@ impl fmt::Debug for Value {
 
 slotmap::new_key_type! {
     pub struct HatId;
+
+    pub struct BasicBlockId;
 
     pub struct OpId;
 
