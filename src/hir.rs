@@ -7,7 +7,7 @@ use std::{collections::HashMap, fmt};
 pub use de::RawValue as Immediate;
 
 pub struct Project {
-    pub hats: Vec<Hat>,
+    pub hats: HashMap<Id<BasicBlock>, Hat>,
     pub basic_blocks: BeachMap<BasicBlock>,
     pub ops: BeachMap<Op>,
 }
@@ -19,7 +19,6 @@ struct Target(usize);
 pub struct Hat {
     owner: Target,
     kind: HatKind,
-    pub body: Id<BasicBlock>,
 }
 
 #[derive(Debug)]

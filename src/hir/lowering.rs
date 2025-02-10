@@ -47,7 +47,7 @@ impl Project {
             eprintln!("{nexts:#?}");
         }
 
-        let mut hats = Vec::new();
+        let mut hats = HashMap::new();
         let mut basic_blocks = BeachMap::new();
 
         for (target_id, target) in de.targets.into_iter().enumerate() {
@@ -174,7 +174,7 @@ fn append_predecessors(
 
 fn lower_block(
     mut block: de::Block,
-    hats: &mut Vec<Hat>,
+    hats: &mut HashMap<Id<BasicBlock>, Hat>,
     owner: Target,
     basic_blocks: &mut BeachMap<BasicBlock>,
     cx: &LoweringContext,
@@ -292,19 +292,21 @@ fn lower_block(
                 .broadcast_option
                 .context("missing field: \"BROADCAST_OPTION\"")?
                 .0;
-            hats.push(Hat {
+            let body = basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it])));
+            let hat = Hat {
                 owner,
                 kind: HatKind::WhenReceived { broadcast_name },
-                body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
-            });
+            };
+            assert!(hats.insert(body, hat).is_none());
             return Ok(None);
         }
         "event_whenflagclicked" => {
-            hats.push(Hat {
+            let body = basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it])));
+            let hat = Hat {
                 owner,
                 kind: HatKind::WhenFlagClicked,
-                body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
-            });
+            };
+            assert!(hats.insert(body, hat).is_none());
             return Ok(None);
         }
         "looks_hide" => Op::Hide,
@@ -407,11 +409,12 @@ fn lower_block(
                 .collect(),
         },
         "procedures_definition" => {
-            hats.push(Hat {
+            let body = basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it])));
+            let hat = Hat {
                 owner,
                 kind: HatKind::Procedure,
-                body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
-            });
+            };
+            assert!(hats.insert(body, hat).is_none());
             return Ok(None);
         }
         "procedures_prototype" => return Ok(None),
