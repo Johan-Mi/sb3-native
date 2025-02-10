@@ -47,21 +47,15 @@ impl Project {
             eprintln!("{nexts:#?}");
         }
 
-        let mut hats = BeachMap::new();
-        let mut hat_owners = HashMap::new();
+        let mut hats = Vec::new();
         let mut basic_blocks = BeachMap::new();
 
         for (target_id, target) in de.targets.into_iter().enumerate() {
             for (id, block) in target.blocks {
                 let id = cx.op_ids[&id];
-                if let Some(op) = lower_block(
-                    block,
-                    &mut hats,
-                    &mut hat_owners,
-                    Target(target_id),
-                    &mut basic_blocks,
-                    &cx,
-                )? {
+                if let Some(op) =
+                    lower_block(block, &mut hats, Target(target_id), &mut basic_blocks, &cx)?
+                {
                     cx.ops[id] = op;
                 }
             }
@@ -73,7 +67,6 @@ impl Project {
 
         Ok(Self {
             hats,
-            hat_owners,
             basic_blocks,
             ops: cx.ops,
         })
@@ -181,9 +174,8 @@ fn append_predecessors(
 
 fn lower_block(
     mut block: de::Block,
-    hats: &mut BeachMap<Hat>,
-    hat_owners: &mut HashMap<Id<Hat>, Target>,
-    target: Target,
+    hats: &mut Vec<Hat>,
+    owner: Target,
     basic_blocks: &mut BeachMap<BasicBlock>,
     cx: &LoweringContext,
 ) -> Result<Option<Op>, anyhow::Error> {
@@ -300,19 +292,19 @@ fn lower_block(
                 .broadcast_option
                 .context("missing field: \"BROADCAST_OPTION\"")?
                 .0;
-            let hat = hats.insert(Hat {
+            hats.push(Hat {
+                owner,
                 kind: HatKind::WhenReceived { broadcast_name },
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(hat_owners.insert(hat, target).is_none());
             return Ok(None);
         }
         "event_whenflagclicked" => {
-            let hat = hats.insert(Hat {
+            hats.push(Hat {
+                owner,
                 kind: HatKind::WhenFlagClicked,
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(hat_owners.insert(hat, target).is_none());
             return Ok(None);
         }
         "looks_hide" => Op::Hide,
@@ -415,11 +407,11 @@ fn lower_block(
                 .collect(),
         },
         "procedures_definition" => {
-            let hat = hats.insert(Hat {
+            hats.push(Hat {
+                owner,
                 kind: HatKind::Procedure,
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(hat_owners.insert(hat, target).is_none());
             return Ok(None);
         }
         "procedures_prototype" => return Ok(None),
