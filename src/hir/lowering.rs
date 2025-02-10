@@ -4,7 +4,7 @@ use super::{
 use crate::de;
 use anyhow::{bail, Context, Result};
 use beach_map::{BeachMap, Id};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 impl Project {
     pub fn lower(de: de::Project) -> Result<Self> {
@@ -48,34 +48,32 @@ impl Project {
         }
 
         let mut hats = BeachMap::new();
+        let mut hat_owners = HashMap::new();
         let mut basic_blocks = BeachMap::new();
 
-        let targets = de
-            .targets
-            .into_iter()
-            .map(|target| {
-                let mut my_hats = HashSet::new();
-
-                for (id, block) in target.blocks {
-                    let id = cx.op_ids[&id];
-                    if let Some(op) =
-                        lower_block(block, &mut hats, &mut my_hats, &mut basic_blocks, &cx)?
-                    {
-                        cx.ops[id] = op;
-                    }
+        for (target_id, target) in de.targets.into_iter().enumerate() {
+            for (id, block) in target.blocks {
+                let id = cx.op_ids[&id];
+                if let Some(op) = lower_block(
+                    block,
+                    &mut hats,
+                    &mut hat_owners,
+                    Target(target_id),
+                    &mut basic_blocks,
+                    &cx,
+                )? {
+                    cx.ops[id] = op;
                 }
-
-                Ok(Target { hats: my_hats })
-            })
-            .collect::<Result<_>>()?;
+            }
+        }
 
         for basic_block in &mut basic_blocks {
             fill_basic_block(basic_block, &predecessors, &nexts);
         }
 
         Ok(Self {
-            targets,
             hats,
+            hat_owners,
             basic_blocks,
             ops: cx.ops,
         })
@@ -184,7 +182,8 @@ fn append_predecessors(
 fn lower_block(
     mut block: de::Block,
     hats: &mut BeachMap<Hat>,
-    my_hats: &mut HashSet<Id<Hat>>,
+    hat_owners: &mut HashMap<Id<Hat>, Target>,
+    target: Target,
     basic_blocks: &mut BeachMap<BasicBlock>,
     cx: &LoweringContext,
 ) -> Result<Option<Op>, anyhow::Error> {
@@ -305,7 +304,7 @@ fn lower_block(
                 kind: HatKind::WhenReceived { broadcast_name },
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(my_hats.insert(hat));
+            assert!(hat_owners.insert(hat, target).is_none());
             return Ok(None);
         }
         "event_whenflagclicked" => {
@@ -313,7 +312,7 @@ fn lower_block(
                 kind: HatKind::WhenFlagClicked,
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(my_hats.insert(hat));
+            assert!(hat_owners.insert(hat, target).is_none());
             return Ok(None);
         }
         "looks_hide" => Op::Hide,
@@ -420,7 +419,7 @@ fn lower_block(
                 kind: HatKind::Procedure,
                 body: basic_blocks.insert(BasicBlock::from(block.next.map(|it| cx.op_ids[&it]))),
             });
-            assert!(my_hats.insert(hat));
+            assert!(hat_owners.insert(hat, target).is_none());
             return Ok(None);
         }
         "procedures_prototype" => return Ok(None),

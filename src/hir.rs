@@ -2,24 +2,19 @@ mod lowering;
 
 use crate::de;
 use beach_map::{BeachMap, Id};
-use std::{
-    collections::{HashMap, HashSet},
-    fmt,
-};
+use std::{collections::HashMap, fmt};
 
 pub use de::RawValue as Immediate;
 
 pub struct Project {
-    targets: Vec<Target>,
     pub hats: BeachMap<Hat>,
+    hat_owners: HashMap<Id<Hat>, Target>,
     pub basic_blocks: BeachMap<BasicBlock>,
     pub ops: BeachMap<Op>,
 }
 
 #[derive(Debug)]
-struct Target {
-    hats: HashSet<Id<Hat>>,
-}
+struct Target(usize);
 
 #[derive(Debug)]
 pub struct Hat {
