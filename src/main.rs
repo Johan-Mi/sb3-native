@@ -6,7 +6,6 @@
 )]
 #![forbid(unsafe_code)]
 
-mod aint;
 mod de;
 mod hir;
 
@@ -24,11 +23,6 @@ fn main() -> Result<()> {
     }
 
     let project = hir::Project::lower(project)?;
-
-    let aint = aint::interpret(&project);
-    if env::var_os("DUMP_AINT").is_some() {
-        eprintln!("{aint:#?}");
-    }
 
     Ok(())
 }
