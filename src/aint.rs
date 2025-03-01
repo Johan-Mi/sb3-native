@@ -81,8 +81,9 @@ pub fn interpret(project: &hir::Project) -> ComputedTypes {
         parameters: HashMap::new(),
         project,
     };
-    for basic_block in &project.basic_blocks {
-        interpreter.interpret_basic_block(basic_block);
+    for (id, op) in project.ops.iter_with_id() {
+        let thing = interpreter.interpret_op(op);
+        let _: Option<Thing> = interpreter.ops.insert(id, thing);
     }
     interpreter.resolve()
 }
@@ -96,18 +97,8 @@ struct Interpreter<'a> {
 }
 
 impl Interpreter<'_> {
-    fn interpret_basic_block(&mut self, body: &hir::BasicBlock) {
-        for &op in &body.ops {
-            let thing = self.interpret_op(op);
-            let _: Option<Thing> = self.ops.insert(op, thing);
-        }
-    }
-
-    fn interpret_op(&mut self, id: Id<hir::Op>) -> Thing {
+    fn interpret_op(&mut self, op: &hir::Op) -> Thing {
         use hir::Op;
-        let Some(op) = self.project.ops.get(id) else {
-            panic!("missing op: {id:?}");
-        };
         match op {
             Op::CallProcedure { arguments } => {
                 for (&parameter, argument) in arguments {
