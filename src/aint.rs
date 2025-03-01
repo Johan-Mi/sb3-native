@@ -79,7 +79,6 @@ pub fn interpret(project: &hir::Project) -> ComputedTypes {
         variables: HashMap::new(),
         lists: HashMap::new(),
         parameters: HashMap::new(),
-        project,
     };
     for (id, op) in project.ops.iter_with_id() {
         let thing = interpreter.interpret_op(op);
@@ -88,15 +87,14 @@ pub fn interpret(project: &hir::Project) -> ComputedTypes {
     interpreter.resolve()
 }
 
-struct Interpreter<'a> {
+struct Interpreter {
     ops: HashMap<Id<hir::Op>, Thing>,
     variables: HashMap<Id<hir::Variable>, Thing>,
     lists: HashMap<Id<hir::List>, Thing>,
     parameters: HashMap<Id<hir::Parameter>, Thing>,
-    project: &'a hir::Project,
 }
 
-impl Interpreter<'_> {
+impl Interpreter {
     fn interpret_op(&mut self, op: &hir::Op) -> Thing {
         use hir::Op;
         match op {
