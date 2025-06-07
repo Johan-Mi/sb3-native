@@ -1,7 +1,8 @@
 pub mod fields;
 
 use anyhow::Result;
-use serde::{de::Visitor, Deserialize};
+use serde::{Deserialize, de::Visitor};
+use serde_derive::Deserialize;
 use std::{collections::HashMap, fmt, fs::File, path::Path};
 
 #[derive(Debug, Deserialize)]

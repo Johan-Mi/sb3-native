@@ -4,7 +4,7 @@
 )]
 
 use super::{ListId, VariableId};
-use serde::Deserialize;
+use serde_derive::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct Variable(String, pub VariableId);

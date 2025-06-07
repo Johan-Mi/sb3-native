@@ -150,6 +150,7 @@ dependencies = [
  "anyhow",
  "beach_map",
  "serde",
+ "serde_derive",
  "serde_json",
  "zip",
 ]
