@@ -9,7 +9,7 @@
 mod de;
 mod hir;
 
-use anyhow::{ensure, Context, Result};
+use anyhow::{Context, Result, ensure};
 use std::env;
 
 fn main() -> Result<()> {

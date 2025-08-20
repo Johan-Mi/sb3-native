@@ -2,7 +2,7 @@ use super::{
     BasicBlock, Hat, HatKind, Immediate, List, Op, Parameter, Project, Target, Value, Variable,
 };
 use crate::de;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use beach_map::{BeachMap, Id};
 use std::collections::HashMap;
 
