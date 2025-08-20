@@ -52,11 +52,10 @@ impl Project {
 
         for (target_id, target) in de.targets.into_iter().enumerate() {
             for (id, block) in target.blocks {
-                let id = cx.op_ids[&id];
                 if let Some(op) =
                     lower_block(block, &mut hats, Target(target_id), &mut basic_blocks, &cx)?
                 {
-                    cx.ops[id] = op;
+                    cx.ops[cx.op_ids[&id]] = op;
                 }
             }
         }
